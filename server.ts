@@ -4,12 +4,12 @@ import fs from "fs/promises";
 import { existsSync, mkdirSync } from "fs";
 import { createServer as createViteServer } from "vite";
 import cookieParser from "cookie-parser";
-
 import multer from "multer";
-import archiver from "archiver";
+
+import * as archiver from 'archiver';
 import unzipper from "unzipper";
 
-const PORT = 3001;
+const PORT = 3000;
 const DATA_FILE = path.join(process.cwd(), "wiki_storage.json");
 const IMAGES_DIR = path.join(process.cwd(), "public", "images");
 const VERSIONS_DIR = path.join(process.cwd(), "versions");
@@ -114,7 +114,7 @@ async function startServer() {
   app.get("/api/export", async (req, res) => {
     try {
       console.log("[EXPORT] Starting export...");
-      const archive = archiver("zip", {
+      const archive = new (archiver as any).ZipArchive({
         zlib: { level: 9 }
       });
 
@@ -123,7 +123,7 @@ async function startServer() {
       archive.on("error", (err) => {
         console.error("[EXPORT] Archiver error:", err);
         if (!res.headersSent) {
-          res.status(500).json({ error: "Failed to generate backup" });
+          res.status(500).json({ error: "Failed to generate backup", details: err.message });
         }
       });
 
@@ -157,7 +157,7 @@ async function startServer() {
     } catch (error) {
       console.error("[EXPORT] Fatal error:", error);
       if (!res.headersSent) {
-        res.status(500).json({ error: "Failed to export data" });
+        res.status(500).json({ error: "Failed to export data", details: error instanceof Error ? error.message : String(error) });
       }
     }
   });

@@ -33,7 +33,7 @@ LingoSketch is a "Digital Brain" for your personal notes.
  
 ## 🌐 Accessing the Wiki
 Once the server is running, open your web browser and navigate to:
-`http://localhost:3001`
+`http://localhost:3000`
  
 ## 🔒 Password Protection
 The application is secured with a password to ensure your data stays private.
