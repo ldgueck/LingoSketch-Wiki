@@ -54,8 +54,12 @@ export default function WikiEdit() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
+        credentials: "include",
       });
-      if (!res.ok) throw new Error("Save failed");
+      console.log("[DEBUG] Save response status:", res.status);
+      const text = await res.text();
+      console.log("[DEBUG] Save response text:", text);
+      if (!res.ok) throw new Error(`Save failed: ${text}`);
       navigate(`/view/${pageName}`);
     } catch (error) {
       console.error(error);

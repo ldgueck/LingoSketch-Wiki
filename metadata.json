@@ -1,5 +1,5 @@
 {
-  "name": "LingoSketch Wiki",
+  "name": "LyngoSketch WIKI",
   "description": "A standalone, offline-ready wiki for creators, featuring local file storage and version history.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

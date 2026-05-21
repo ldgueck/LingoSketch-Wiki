@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, 10000);
 
     try {
-      const response = await fetch("/api/auth-status");
+      const response = await fetch("/api/auth-status", { credentials: "include" });
       if (!response.ok) {
         throw new Error(`Server returned ${response.status} ${response.statusText}`);
       }
@@ -54,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
+        credentials: "include",
       });
       
       if (response.ok) {
@@ -69,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch("/api/logout", { method: "POST" });
+      await fetch("/api/logout", { method: "POST", credentials: "include" });
       setIsAuthenticated(false);
     } catch (error) {
       console.error("Logout failed:", error);

@@ -1,3 +1,3 @@
 {
-  "HomePage": "# Welcome to your Racket-inspired Wiki\n\nThis wiki was imported from your Racket project. You can edit this page, create new ones using `[[Link]]` syntax, and search through your pages.\n\n## Features\n- **OO Design**: Built with modular components.\n- **Lisp-y feel**: Simple, list-based data storage.\n- **Search**: Fast local search.\n\nTry clicking on [[WikiManual]] or create a new page!"
+  "HomePage": "# Welcome to your Wiki\n\nThis is your new wiki. You can edit this page, create new ones using `[[Link]]` syntax, and search through your pages."
 }

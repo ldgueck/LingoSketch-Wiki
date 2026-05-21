@@ -62,6 +62,7 @@ export default function ImportPage() {
 
     setRestoring(true);
     setStatus(null);
+    console.log("[RESTORE FE] Starting restore process for:", file.name);
 
     const formData = new FormData();
     formData.append("backup", file);
@@ -72,18 +73,22 @@ export default function ImportPage() {
         body: formData,
       });
 
+      console.log("[RESTORE FE] Server response status:", res.status);
+      const data = await res.json();
+      console.log("[RESTORE FE] Server response data:", data);
+
       if (res.ok) {
         setStatus({ type: "success", message: "Backup restored successfully! Refreshing..." });
         setTimeout(() => window.location.reload(), 1500);
       } else {
-        const data = await res.json();
         setStatus({ type: "error", message: data.error || "Failed to restore backup." });
+        setRestoring(false);
       }
     } catch (error) {
       console.error("Restore failed:", error);
       setStatus({ type: "error", message: "A network error occurred during restore." });
-    } finally {
       setRestoring(false);
+    } finally {
       e.target.value = ""; // Reset input
     }
   };

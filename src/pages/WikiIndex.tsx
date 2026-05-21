@@ -10,7 +10,7 @@ export default function WikiIndex() {
 
   useEffect(() => {
     setLoading(true);
-    fetch("/api/pages")
+    fetch("/api/pages", { credentials: "include" })
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load index");
         return res.json();

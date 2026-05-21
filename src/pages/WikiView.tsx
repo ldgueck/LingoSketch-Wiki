@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { Edit2, Trash2, Home, ArrowLeft, Type, Link as LinkIcon } from "lucide-react";
+import { Edit2, Trash2, Home, ArrowLeft, Type, Link as LinkIcon, Download } from "lucide-react";
 import { Layout } from "../components/Layout";
 import { WikiRenderer } from "../components/WikiRenderer";
 
@@ -15,7 +15,7 @@ export default function WikiView() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/pages/${pageName}`)
+    fetch(`/api/pages/${pageName}`, { credentials: "include" })
       .then((res) => {
         if (res.status === 404) return { name: pageName, content: "# Page Not Found\n\nThis page doesn't exist yet. Would you like to [[edit]] it?" };
         if (!res.ok) throw new Error("Failed to load page");
@@ -32,7 +32,7 @@ export default function WikiView() {
         setLoading(false);
       });
 
-    fetch(`/api/backlinks/${pageName}`)
+    fetch(`/api/backlinks/${pageName}`, { credentials: "include" })
       .then((res) => res.json())
       .then(setBacklinks)
       .catch(console.error);
@@ -40,9 +40,14 @@ export default function WikiView() {
 
   const handleDelete = async () => {
     if (window.confirm(`Are you sure you want to delete ${pageName}?`)) {
-      await fetch(`/api/pages/${pageName}`, { method: "DELETE" });
+      await fetch(`/api/pages/${pageName}`, { method: "DELETE", credentials: "include" });
       navigate("/");
     }
+  };
+
+  const handleExport = () => {
+    const format = window.confirm("Export as ZIP archive? (Cancel for HTML file)") ? "zip" : "html";
+    window.location.href = `/api/export?startPage=${encodeURIComponent(pageName)}&format=${format}`;
   };
 
   const handleRename = async () => {
@@ -53,6 +58,7 @@ export default function WikiView() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ newName }),
+          credentials: "include",
         });
         const data = await res.json();
         if (res.ok) {
@@ -83,6 +89,12 @@ export default function WikiView() {
           className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all font-semibold text-sm"
         >
           <Type size={16} /> Rename
+        </button>
+        <button 
+          onClick={handleExport}
+          className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-xl transition-all font-semibold text-sm"
+        >
+          <Download size={16} /> Export Branch
         </button>
         <button 
           onClick={handleDelete}
