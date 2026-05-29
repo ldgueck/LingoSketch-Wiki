@@ -8,6 +8,9 @@ export default function ImportPage() {
   const [restoring, setRestoring] = useState(false);
   const [importingLisp, setImportingLisp] = useState(false);
   const [lispText, setLispText] = useState("");
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [confirmationDialog, setConfirmationDialog] = useState(false);
+  const [dialog, setDialog] = useState<{ isOpen: boolean; message: string; isError: boolean } | null>(null);
   const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const navigate = useNavigate();
 
@@ -21,6 +24,7 @@ export default function ImportPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lispData: lispText }),
+        credentials: "include",
       });
 
       const data = await res.json();
@@ -51,46 +55,73 @@ export default function ImportPage() {
     }
   };
 
-  const handleRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const performRestore = async () => {
+    if (!restoreFile) return;
 
-    if (!window.confirm("Are you sure you want to restore from this backup? This will overwrite your current wiki content and images.")) {
-      e.target.value = ""; // Reset input
-      return;
-    }
-
+    setConfirmationDialog(false);
     setRestoring(true);
     setStatus(null);
-    console.log("[RESTORE FE] Starting restore process for:", file.name);
+    console.log("[RESTORE FE] Starting restore process for:", restoreFile.name);
 
     const formData = new FormData();
-    formData.append("backup", file);
+    formData.append("backup", restoreFile);
 
     try {
       const res = await fetch("/api/restore", {
         method: "POST",
         body: formData,
+        credentials: "include",
       });
 
       console.log("[RESTORE FE] Server response status:", res.status);
-      const data = await res.json();
+      let data: any = {};
+      try {
+        const text = await res.text();
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { error: text || `Server error (Status ${res.status})` };
+        }
+      } catch (readError) {
+        data = { error: "Failed to read response from server." };
+      }
       console.log("[RESTORE FE] Server response data:", data);
 
       if (res.ok) {
-        setStatus({ type: "success", message: "Backup restored successfully! Refreshing..." });
-        setTimeout(() => window.location.reload(), 1500);
+        setDialog({
+          isOpen: true,
+          message: "Backup restored successfully! The application will refresh in 2 seconds.",
+          isError: false
+        });
+        setTimeout(() => window.location.reload(), 2000);
       } else {
-        setStatus({ type: "error", message: data.error || "Failed to restore backup." });
+        setDialog({
+          isOpen: true,
+          message: data.error || "Failed to restore backup.",
+          isError: true
+        });
         setRestoring(false);
       }
     } catch (error) {
       console.error("Restore failed:", error);
-      setStatus({ type: "error", message: "A network error occurred during restore." });
+      setDialog({
+        isOpen: true,
+        message: "A network error occurred during restore.",
+        isError: true
+      });
       setRestoring(false);
     } finally {
-      e.target.value = ""; // Reset input
+      setRestoreFile(null);
     }
+  };
+
+  const handleRestore = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setRestoreFile(file);
+    setConfirmationDialog(true);
+    e.target.value = ""; // Reset input
   };
 
   return (
@@ -205,6 +236,33 @@ export default function ImportPage() {
             {status.type === "success" ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
             <span className="font-semibold">{status.message}</span>
           </div>
+        )}
+        
+        {confirmationDialog && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+               <div className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center gap-4 border-2 border-amber-200">
+                  <AlertCircle size={48} className="text-amber-500"/>
+                  <h3 className="text-lg font-bold text-slate-800">Confirm Restore</h3>
+                  <p className="text-slate-600 text-sm">Are you sure you want to restore from this backup? This will overwrite your current wiki content and images.</p>
+                  <div className="flex gap-4">
+                    <button onClick={() => setConfirmationDialog(false)} className="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold">Cancel</button>
+                    <button onClick={performRestore} className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Confirm Restore</button>
+                  </div>
+               </div>
+            </div>
+        )}
+        
+        {dialog && (
+
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+               <div className={`bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center gap-4 ${dialog.isError ? "border-2 border-red-200" : "border-2 border-green-200"}`}>
+                  {dialog.isError ? <AlertCircle size={48} className="text-red-500"/> : <CheckCircle size={48} className="text-green-500" />}
+                  <h3 className="text-lg font-bold text-slate-800">{dialog.isError ? "Error" : "Success"}</h3>
+                  <p className="text-slate-600 text-sm">{dialog.message}</p>
+                  {!dialog.isError && <button onClick={() => window.location.reload()} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold">Close</button>}
+                  {dialog.isError && <button onClick={() => setDialog(null)} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold">Dismiss</button>}
+               </div>
+            </div>
         )}
       </div>
     </Layout>

@@ -12,6 +12,8 @@ import SearchResults from "./pages/SearchResults";
 import ImportPage from "./pages/ImportPage";
 import ImageGallery from "./pages/ImageGallery";
 import LoginPage from "./pages/LoginPage";
+import WantedPages from "./pages/WantedPages";
+import OrphanedPages from "./pages/OrphanedPages";
 import { AuthProvider, useAuth } from "./components/AuthProvider";
 import { Loader2 } from "lucide-react";
 
@@ -40,6 +42,8 @@ function AppContent() {
       <Route path="/view/:name" element={<WikiView />} />
       <Route path="/edit/:name" element={<WikiEdit />} />
       <Route path="/index" element={<WikiIndex />} />
+      <Route path="/wanted" element={<WantedPages />} />
+      <Route path="/orphaned" element={<OrphanedPages />} />
       <Route path="/new" element={<NewPage />} />
       <Route path="/search" element={<SearchResults />} />
       <Route path="/import" element={<ImportPage />} />
