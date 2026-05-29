@@ -16,24 +16,31 @@ LingoSketch is a "Digital Brain" for your personal notes.
 - Node.js (v18+)
  
 ## 💻 Installation
- 
-### Windows
-1. Download or clone this repository.
-2. Open **PowerShell** or **Git Bash** in the project directory.
-3. Install dependencies: `npm install`
-4. Build the application: `npm run build`
-5. Start the server: `npm start`
- 
-### Linux (Ubuntu/Debian)
 1. Ensure `node` and `npm` are installed.
-2. In your terminal, navigate to the project directory.
+2. Clone this repository.
 3. Install dependencies: `npm install`
 4. Build the application: `npm run build`
-5. Start the server: `npm start`
+5. Start the server: `npm start ./default-config.json`
  
 ## 🌐 Accessing the Wiki
-Once the server is running, open your web browser and navigate to:
-`http://localhost:3000`
+Once the server is running, open your web browser and navigate to the port specified in your configuration (usually `http://localhost:3000`).
+
+## 🧩 Running Multiple Wiki Instances
+LingoSketch supports multi-instance deployment. You can manage multiple, completely independent wikis by creating custom configuration files.
+
+1. Create a new configuration JSON file (e.g., `my-project.json`):
+   ```json
+   {
+     "wikiName": "My Project Wiki",
+     "port": 3001,
+     "imagesDir": "./data/images",
+     "versionsDir": "./data/versions",
+     "dataFile": "./data/storage.json",
+     "tempDir": "./data/temp"
+   }
+   ```
+2. Start this specific instance:
+   `npm start ./my-project.json`
  
 ## 🔒 Password Protection
 The application is secured with a password to ensure your data stays private.

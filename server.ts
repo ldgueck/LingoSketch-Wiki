@@ -5,14 +5,18 @@ import { readFile, writeFile, rm, mkdir, cp } from "fs/promises";
 import cookieParser from "cookie-parser";
 import multer from "multer";
 import AdmZip from "adm-zip";
+import { loadConfig } from "./config-loader";
 
 // Only production if explicitly set
 const isProd = process.env.NODE_ENV === "production";
-const PORT = 3000;
-const IMAGES_DIR = path.resolve(process.cwd(), "images");
-const VERSIONS_DIR = path.resolve(process.cwd(), "versions");
-const DATA_FILE = path.resolve(process.cwd(), "wiki_storage.json");
-const TEMP_DIR = path.resolve(process.cwd(), "temp");
+const configPath = process.argv[2] || './default-config.json';
+const config = loadConfig(configPath);
+
+const IMAGES_DIR = config.imagesDir;
+const VERSIONS_DIR = config.versionsDir;
+const DATA_FILE = config.dataFile;
+const TEMP_DIR = config.tempDir;
+const PORT = config.port;
 
 const upload = multer({ dest: TEMP_DIR });
 
@@ -1175,7 +1179,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running at http://0.0.0.0:${PORT}`);
+    console.log(`Wiki [${config.wikiName}] running at http://0.0.0.0:${PORT}`);
   });
 }
 
