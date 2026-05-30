@@ -50,4 +50,3 @@ MIT - Designed for you to own, host, and control your knowledge.
 
 ***
 
-*   **Architecture Tone:** The language now feels more like a robust piece of software architecture ("Architectural runway," "Atomic persistence") while maintaining the simplicity of the "JSON Advantage."
