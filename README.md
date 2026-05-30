@@ -1,6 +1,6 @@
 # LyngoSketch Wiki
 
-LingoSketch Wiki is a lightweight, multi-instance wiki engine that stores data in plain JSON files. It is designed to be portable, highly performant, and easy to run on local machines or remote servers.
+LingoSketch Wiki is a lightweight, multi-instance, multi-user wiki engine that stores data in plain JSON files. It is designed to be portable, highly performant, and easy to run on local machines or remote servers for collaborative knowledge management.
 
 ## Getting Started
 
@@ -62,7 +62,7 @@ The wiki includes a branch-aware export engine that allows you to slice off a se
 
 ## Security & Deployment
 
-*   **Access Control**: Secure your instances using the `APP_PASSWORD` environment variable.
+*   **Access Control**: The wiki supports multiple concurrent users. You can secure access to an instance using the `APP_PASSWORD` environment variable.
 *   **Remote Access**: If you are hosting the wiki on a public server, it is recommended to place it behind a reverse proxy (such as Nginx, Caddy, or Traefik) to handle SSL/TLS encryption.
 *   **Process Management**: For production environments, use a process manager like PM2 to keep your wiki instances running in the background.
 
