@@ -1,5 +1,3 @@
-This version removes the marketing superlatives (like "sophisticated," "blazing-fast," and "elegant") and focuses on the technical facts. It reads more like a set of clear instructions or a technical manual.
-
 ***
 
 # LyngoSketch Branch Export Guide
