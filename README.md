@@ -50,7 +50,4 @@ MIT - Designed for you to own, host, and control your knowledge.
 
 ***
 
-### Key Changes:
-*   **Performance Highlight:** Explicitly mentioned that it handles **tens of thousands of pages**. This immediately answers the "will it get slow?" question that power users will have.
-*   **Process Manager Mention:** I added a small mention of **PM2** in the "Horizontal Deployment" section. If you are running four instances on a server, you will likely want to use a tool like PM2 to keep them alive, which is a pro-tip for users.
 *   **Architecture Tone:** The language now feels more like a robust piece of software architecture ("Architectural runway," "Atomic persistence") while maintaining the simplicity of the "JSON Advantage."
