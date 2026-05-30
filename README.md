@@ -2,51 +2,49 @@
 
 # LyngoSketch Wiki
 
-A high-performance, multi-instance wiki engine designed for total digital sovereignty. Whether you are running it on a local laptop or a production server, LyngoSketch Wiki delivers the speed of a flat-file system with the capacity of a professional knowledge base.
+A straightforward, reliable wiki engine designed for local control and data portability. LyngoSketch uses a flat-file system, meaning your data stays in human-readable JSON files that you can easily back up, move, or manage with Git.
 
-## 🚀 Why LyngoSketch Wiki?
-- **Extreme Portability**: Your data is stored in human-readable JSON. Move it, backup it, or version-control it with Git effortlessly.
-- **High Capacity**: Built to handle **thousands of pages** with sub-millisecond response times before ever needing to consider a transition to a relational database.
-- **Instance-Based Architecture**: Run multiple isolated wikis side-by-side. Perfect for segmenting complex projects—keep your Ancestry research, personal notes, and collaborative family wikis running on the same hardware.
-- **Dual-Environment Ready**: Lightweight enough for your home laptop, robust enough for your remote server.
+## Key Features
 
-## 💻 Quick Start
-1. **Setup**:
-   ```bash
-   git clone <your-repo-url>
-   cd LyngoSketchWiki
-   npm install
-   npm run build
-   ```
-2. **Launch**:
-   ```bash
-   npm start ./configs/my-wiki.json
-   ```
+*   **Simple Data Storage**: Your wiki content is stored in JSON. No complex databases to manage—just clear, accessible files.
+*   **Independent Instances**: You can run multiple, isolated wiki instances on the same machine. This makes it easy to keep different projects (like personal notes, family records, or research) separate while using the same software.
+*   **Performance**: Built to handle thousands of pages quickly without the overhead of a heavy database.
+*   **Flexible Deployment**: Runs just as well on a home laptop as it does on a remote server.
 
-## 🧩 Horizontal Deployment
-LyngoSketch Wiki is designed to scale horizontally. You can run unlimited independent wiki instances on a single machine by creating custom configuration files for each:
+## Getting Started
 
+1.  **Installation**:
+    ```bash
+    git clone <your-repo-url>
+    cd LyngoSketchWiki
+    npm install
+    npm run build
+    ```
+2.  **Running the Wiki**:
+    ```bash
+    npm start ./configs/my-wiki.json
+    ```
+
+## Running Multiple Instances
+
+You can run multiple wikis simultaneously by creating a separate configuration file for each. 
+
+Example `config.json`:
 ```json
 {
-  "wikiName": "Ancestry Project",
+  "wikiName": "My Project",
   "port": 3001,
-  "imagesDir": "./data/ancestry/images",
-  "dataFile": "./data/ancestry/storage.json"
+  "imagesDir": "./data/project/images",
+  "dataFile": "./data/project/storage.json"
 }
 ```
-*Launch multiple instances via command line or process manager (like PM2):*
-`npm start ./configs/ancestry.json` & `npm start ./configs/private-notes.json`
+You can launch these instances individually or use a process manager like PM2 to keep them running in the background.
 
-## 🔒 Security & Deployment
-- **Authentication**: Secure your instances with the `APP_PASSWORD` environment variable.
-- **Remote Access**: When hosting on a server for global access, we recommend placing LyngoSketch Wiki behind a **reverse proxy** (Nginx, Caddy, or Traefik) to handle SSL/TLS encryption.
+## Security & Reliability
 
-## 🏗 Built for Reliability
-- **Atomic Persistence**: We use atomic file writes to ensure your data remains perfectly intact, even during unexpected system reboots.
-- **The "JSON Advantage"**: By avoiding a relational database, you eliminate complex dependencies. You get raw performance and simplicity, with a clear architectural runway to scale up to tens of thousands of pages.
+*   **Atomic Saves**: The system uses atomic file writes. This helps prevent data corruption if your computer unexpectedly loses power or reboots.
+*   **Access Control**: You can password-protect your instances using the `APP_PASSWORD` environment variable.
+*   **Remote Access**: If you choose to host this on a public server, please use a reverse proxy (such as Nginx, Caddy, or Traefik) to handle your SSL/TLS encryption.
 
-## 📄 License
-MIT - Designed for you to own, host, and control your knowledge.
-
-***
-
+## License
+MIT - You own your data and control your hosting environment.
