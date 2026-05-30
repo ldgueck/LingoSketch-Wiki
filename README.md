@@ -1,10 +1,10 @@
 ***
 
-# LingoSketch Wiki
+# LyngoSketch Wiki
 
-A high-performance, multi-instance wiki engine designed for total digital sovereignty. Whether you are running it on a local laptop or a production server, LingoSketch delivers the speed of a flat-file system with the capacity of a professional knowledge base.
+A high-performance, multi-instance wiki engine designed for total digital sovereignty. Whether you are running it on a local laptop or a production server, LyngoSketch Wiki delivers the speed of a flat-file system with the capacity of a professional knowledge base.
 
-## 🚀 Why LingoSketch?
+## 🚀 Why LyngoSketch Wiki?
 - **Extreme Portability**: Your data is stored in human-readable JSON. Move it, backup it, or version-control it with Git effortlessly.
 - **High Capacity**: Built to handle **thousands of pages** with sub-millisecond response times before ever needing to consider a transition to a relational database.
 - **Instance-Based Architecture**: Run multiple isolated wikis side-by-side. Perfect for segmenting complex projects—keep your Ancestry research, personal notes, and collaborative family wikis running on the same hardware.
@@ -14,7 +14,7 @@ A high-performance, multi-instance wiki engine designed for total digital sovere
 1. **Setup**:
    ```bash
    git clone <your-repo-url>
-   cd LingoSketch
+   cd LyngoSketchWiki
    npm install
    npm run build
    ```
@@ -24,7 +24,7 @@ A high-performance, multi-instance wiki engine designed for total digital sovere
    ```
 
 ## 🧩 Horizontal Deployment
-LingoSketch is designed to scale horizontally. You can run unlimited independent wiki instances on a single machine by creating custom configuration files for each:
+LyngoSketch Wiki is designed to scale horizontally. You can run unlimited independent wiki instances on a single machine by creating custom configuration files for each:
 
 ```json
 {
@@ -39,7 +39,7 @@ LingoSketch is designed to scale horizontally. You can run unlimited independent
 
 ## 🔒 Security & Deployment
 - **Authentication**: Secure your instances with the `APP_PASSWORD` environment variable.
-- **Remote Access**: When hosting on a server for global access, we recommend placing LingoSketch behind a **reverse proxy** (Nginx, Caddy, or Traefik) to handle SSL/TLS encryption.
+- **Remote Access**: When hosting on a server for global access, we recommend placing LyngoSketch Wiki behind a **reverse proxy** (Nginx, Caddy, or Traefik) to handle SSL/TLS encryption.
 
 ## 🏗 Built for Reliability
 - **Atomic Persistence**: We use atomic file writes to ensure your data remains perfectly intact, even during unexpected system reboots.
