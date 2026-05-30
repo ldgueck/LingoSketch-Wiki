@@ -1,70 +1,64 @@
+This version removes the marketing superlatives (like "sophisticated," "blazing-fast," and "elegant") and focuses on the technical facts. It reads more like a set of clear instructions or a technical manual.
+
+***
+
 # LyngoSketch Branch Export Guide
 
-LyngoSketch Wiki features a sophisticated, branch-aware export engine. This allows you to slice, pack, and export your knowledge base starting from any given page. Instead of exporting the entire database, the engine traces references to bundle a fully working, self-contained subset of pages and assets.
-
-This document details how the export system resolves page dependencies, packs assets, and provides options for utilizing these exports.
+LyngoSketch Wiki includes a tool to export a specific section—or "branch"—of your wiki. Instead of exporting the entire database, this tool traces links from a starting page to create a self-contained bundle of pages and images.
 
 ---
 
-## ⚙️ How the Export Database Engine Works
+## How the Export Engine Works
 
-The export engine runs server-side and performs a selective, recursive depth-first traversal starting from your active page (`startPage`).
+The engine performs a recursive scan starting from your chosen `startPage`.
 
-### 1. Reachability & Link Parsing
-The engine identifies active hyperlinks inside your page markdown content using two main formats:
-*   **WikiLinks**: Double-bracket internal links (e.g., `[[Sub_Page_Name]]` or `[[Label|Sub_Page_Name]]`).
-*   **Markdown Views**: Standard Markdown links targeting internal pages (e.g., `[Label](/view/Sub_Page_Name)`).
+### 1. Link Parsing
+The engine identifies links within your markdown content to determine which pages are connected to your starting page:
+*   **WikiLinks**: `[[Page_Name]]` or `[[Label|Page_Name]]`
+*   **Markdown Links**: `[Label](/view/Page_Name)`
 
-Every valid target is converted into a standard lowercase slug. If a matching page exists in the database, it is pushed to a traversal queue. The system recursively parses all discovered pages until the full reachable subgraph is resolved.
+It converts these into standardized slugs and recursively builds a list of all reachable pages.
 
-### 2. Selective Isolation of Assets (Images)
-During page parsing, the engine detects and harvests only the images that are actively referenced in the current branch:
-*   **Standard Markdown Images**: `![alt](/images/filename.png)`
-*   **Wiki Embedded Images**: `![[filename.png|caption]]`
-*   **Direct Link Previews**: `[[filename.png]]`
+### 2. Asset Selection
+The engine scans the reachable pages for referenced images:
+*   Standard markdown images: `![alt](/images/filename.png)`
+*   Wiki embedded images: `![[filename.png|caption]]`
+*   Direct link previews: `[[filename.png]]`
 
-Any referenced image is checked against the server's local media folder (`images/`) and added directly to the output package. Non-referenced image assets are excluded, ensuring the export is compact.
+Only the images found in your content are included in the export, keeping the file size manageable.
 
-### 3. Selective Version History
-For raw database backups, the system identifies history records residing in the `versions/` folder that match the names of the reachable page keys. Only these matches are bundled, keeping history lightweight and relevant to the exported project.
-
----
-
-## 📦 Export Formats
-
-LyngoSketch provides two distinct export modes to suit different goals:
-
-### 1. Zipped HTML Branch (`.zip`)
-Compiles the resolved branch into a standalone static web application.
-
-*   **Design & Templates**: Every page is bundled within a responsive, styled HTML template featuring a modern layout with comfortable negative space. It matches the beautiful design of the primary wiki app.
-*   **Safe SLUG Navigation**: High-integrity URL sanitization runs on the fly, transforming characters like `:` and other illegal operating system path symbols into safe filename slugs (e.g., `K:_Kotivara.html` becomes `K__Kotivara.html`).
-*   **Functional Sidebar**: The template automatically embeds an elegant sidebar containing links to all other reachable sibling pages in the zip.
-*   **Fallback Resolution**: If a link references a page *outside* the exported branch but exists in the database, the link is preserved with an `(External)` label style. If the destination page does not exist anywhere, the engine styles it with a distinct dashed visual signature indicating it is waiting to be written.
-
-### 2. Wiki Branch Backup ZIP (`.zip`)
-Generates a raw, standard database backup limited to the target branch.
-
-*   **Database Slice (`wiki_storage.json`)**: Contains only the key-value rows of reachable pages.
-*   **Localized Media (`images/`)**: Houses only the image files used by the sliced content.
-*   **Selective History (`versions/`)**: Includes the text-file edits of the sliced pages, perfect for auditing or reverting changes in the future.
+### 3. Version History
+If you choose to include history, the engine bundles only the version files corresponding to the pages in your selected branch.
 
 ---
 
-## 💡 What You Can Do with These Data Dumps
+## Export Formats
 
-These structured exports open up numerous production opportunities for your digital brain:
+There are two ways to export your data:
 
-### 🌐 Instant Serverless Static Sites
-The compiled **Zipped HTML Branch** is serverless and ready to upload.
-*   **Static Hosting**: Upload the contents directly to **GitHub Pages**, **Vite**, **Cloudflare Pages**, **Netlify**, or **Vercel** to share a responsive, blazing-fast read-only snapshot with your friends, colleagues, or public readers.
-*   **Zero Infrastructure Costs**: No database, Node environment, or host is required. The pages load instantly with sub-millisecond static response times.
+### 1. Zipped HTML Branch
+This compiles your branch into a standalone, static website.
+*   **Self-Contained**: Includes a responsive HTML template to view your content in any browser.
+*   **Safe Filenames**: Automatically renames pages to be compatible with all operating systems (e.g., converting special characters to safe filename slugs).
+*   **Navigation**: Includes a sidebar with links to all pages within the exported branch.
+*   **Link Handling**: Links to pages outside your export are marked as "External," and broken links are visually flagged.
 
-### 🧩 Spawn Isolated Wiki Instances
-Using the **Wiki Branch Backup ZIP**:
-*   **Horizontal Segments**: Spin up a brand new independent LyngoSketch container or service instance. Feed the exported `wiki_storage.json` into its configuration to easily split massive wikis (e.g., moving family research to its own server).
-*   **Easy Migrations**: Transport your active research branch between laptops, home servers, or workspaces safely without moving unrelated configurations or private keys.
+### 2. Wiki Branch Backup
+This generates a raw backup of your data.
+*   **Database Slice**: A `wiki_storage.json` file containing only the reachable pages.
+*   **Localized Media**: A folder containing only the images used by these pages.
+*   **Selective History**: A `versions/` folder containing the edit history for these specific pages.
 
-### 📂 Offline Archives & Local Reading
-*   **100% Offline Access**: The index.html and safe-linked pages run smoothly inside any computer or mobile browser, completely disconnected from the internet. Keep permanent archives on absolute offline backups, secure flash drives, or write-once optical discs.
-*   **Tool Interoperability**: Since the media and database are kept in standard formats (e.g., raw Markdown text within JSON and standard images in folder structures), they can easily be imported directly into other markdown editors like **Obsidian**, **Logseq**, or **Zettlr**.
+---
+
+## Uses for Exported Data
+
+### Static Web Hosting
+You can upload the **Zipped HTML Branch** to any static host (such as GitHub Pages, Netlify, or Vercel). Because these are standard HTML files, they require no database or server-side software to run.
+
+### Migrating or Splitting Wikis
+Use the **Wiki Branch Backup** to move content. You can take this data and point a new LyngoSketch instance to it. This is a practical way to split a large wiki into smaller, specialized projects.
+
+### Offline Archives and Interoperability
+*   **Offline Access**: The HTML exports work in any browser without an internet connection, making them ideal for long-term storage on flash drives or external hard drives.
+*   **Compatibility**: Because the data is stored in standard Markdown and JSON formats, you can easily open or import your content into other markdown-based tools like Obsidian, Logseq, or Zettlr.

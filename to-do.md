@@ -1,22 +1,24 @@
-# LyngoSketch Wiki - Future Tasks & Roadmap
+***
 
-Below is the structured roadmap for upcoming enhancements to LyngoSketch Wiki.
+# LyngoSketch Wiki - Development Roadmap
 
-- [ ] **Refine HTML Export**
-  - [ ] Improve typography stylesheets and CSS integration for printing/saving.
-  - [ ] Enhance standard markdown rendering accuracy for tables and advanced blocks.
-  - [ ] Add clean navigation arrows (Next/Previous) based on branch traversal paths.
+This list outlines the planned updates and features currently in development.
 
-- [ ] **Audio Files Support**
-  - [ ] Add an intuitive inline media player for audio files (MP3, WAV, OGG).
-  - [ ] Support recording audio voice notes directly inside a page using Web Audio APIs.
-  - [ ] Build audio file selective scoping in branch exports.
+### HTML Export Improvements
+- [ ] Refine CSS and typography for better readability and print output.
+- [ ] Improve rendering support for complex markdown, such as tables and custom blocks.
+- [ ] Add "Next" and "Previous" navigation links to exported pages.
 
-- [ ] **PDF Files Support**
-  - [ ] Implement direct PDF embedding so readers can review uploaded documents inside pages.
-  - [ ] Support PDF generation from the compiled static HTML pages or branches.
-  - [ ] Include PDF documents in the dependency/asset tracer during exports.
+### Audio Support
+- [ ] Add an inline player for audio files (MP3, WAV, OGG).
+- [ ] Add the ability to record audio notes directly from the browser.
+- [ ] Update the branch export tool to include or exclude audio files as needed.
 
-- [ ] **Miscellaneous Enhancements**
-  - [ ] Custom styling presets for public vs. private wiki instances.
-  - [ ] Better backup verification mechanisms.
+### PDF Support
+- [ ] Add PDF embedding so documents can be viewed directly within a page.
+- [ ] Add functionality to export pages or branches as PDFs.
+- [ ] Include PDF documents in the export dependency tracer.
+
+### General Improvements
+- [ ] Add support for custom styling presets (e.g., differentiating between public and private wikis).
+- [ ] Develop better tools for verifying the integrity of data backups.
