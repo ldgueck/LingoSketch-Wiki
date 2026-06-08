@@ -17,6 +17,9 @@ const VERSIONS_DIR = config.versionsDir;
 const DATA_FILE = config.dataFile;
 const TEMP_DIR = config.tempDir;
 const PORT = config.port;
+const PDFS_DIR = config.pdfsDir;
+const AUDIO_DIR = config.audioDir;
+const VIDEOS_DIR = config.videosDir;
 
 const upload = multer({ dest: TEMP_DIR });
 
@@ -159,6 +162,9 @@ async function startServer() {
   if (!existsSync(IMAGES_DIR)) mkdirSync(IMAGES_DIR, { recursive: true });
   if (!existsSync(VERSIONS_DIR)) mkdirSync(VERSIONS_DIR, { recursive: true });
   if (!existsSync(TEMP_DIR)) mkdirSync(TEMP_DIR, { recursive: true });
+  if (!existsSync(PDFS_DIR)) mkdirSync(PDFS_DIR, { recursive: true });
+  if (!existsSync(AUDIO_DIR)) mkdirSync(AUDIO_DIR, { recursive: true });
+  if (!existsSync(VIDEOS_DIR)) mkdirSync(VIDEOS_DIR, { recursive: true });
   
   if (!existsSync(DATA_FILE)) {
     try {
@@ -192,6 +198,9 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.text({ limit: "50mb" }));
   app.use('/images', express.static(IMAGES_DIR));
+  app.use('/pdfs', express.static(PDFS_DIR));
+  app.use('/audio', express.static(AUDIO_DIR));
+  app.use('/videos', express.static(VIDEOS_DIR));
 
   // Authentication Middleware
   const authMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -248,6 +257,196 @@ async function startServer() {
     } catch (e) {
       console.error("Failed to list images:", e);
       res.status(500).json({ error: "Failed to list images" });
+    }
+  });
+
+  app.post("/api/upload", authMiddleware, upload.single("image"), async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ error: "No image file provided" });
+    }
+    try {
+      const originalName = req.file.originalname;
+      const safeName = originalName.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+      const targetPath = path.join(IMAGES_DIR, safeName);
+      
+      const { rename } = await import("fs/promises");
+      await rename(req.file.path, targetPath);
+      
+      res.json({ success: true, name: safeName, url: `/images/${safeName}` });
+    } catch (e: any) {
+      console.error("Failed to upload image:", e);
+      res.status(500).json({ error: "Failed to upload image: " + e.message });
+    }
+  });
+
+  app.delete("/api/images/:name", authMiddleware, async (req, res) => {
+    try {
+      const name = decodeURIComponent(req.params.name);
+      const resolvedPath = path.join(IMAGES_DIR, path.basename(name));
+      if (existsSync(resolvedPath)) {
+        const { rm } = await import("fs/promises");
+        await rm(resolvedPath);
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "Image not found" });
+      }
+    } catch (e: any) {
+      console.error("Failed to delete image:", e);
+      res.status(500).json({ error: "Failed to delete image: " + e.message });
+    }
+  });
+
+  app.get("/api/pdfs", async (req, res) => {
+    try {
+      const files = await import("fs/promises").then(fs => fs.readdir(PDFS_DIR));
+      const pdfFiles = files.filter(f => f.toLowerCase().endsWith(".pdf"));
+      res.json(pdfFiles.map(file => ({ name: file, url: `/pdfs/${file}` })));
+    } catch (e) {
+      console.error("Failed to list PDFs:", e);
+      res.status(500).json({ error: "Failed to list PDFs" });
+    }
+  });
+
+  app.post("/api/upload-pdf", authMiddleware, upload.single("pdf"), async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ error: "No PDF file provided" });
+    }
+    try {
+      const originalName = req.file.originalname;
+      const safeName = originalName.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+      if (!safeName.toLowerCase().endsWith(".pdf")) {
+        return res.status(400).json({ error: "File must be a PDF" });
+      }
+      const targetPath = path.join(PDFS_DIR, safeName);
+      
+      const { rename } = await import("fs/promises");
+      await rename(req.file.path, targetPath);
+      
+      res.json({ success: true, name: safeName, url: `/pdfs/${safeName}` });
+    } catch (e: any) {
+      console.error("Failed to upload PDF:", e);
+      res.status(500).json({ error: "Failed to upload PDF: " + e.message });
+    }
+  });
+
+  app.delete("/api/pdfs/:name", authMiddleware, async (req, res) => {
+    try {
+      const name = decodeURIComponent(req.params.name);
+      const resolvedPath = path.join(PDFS_DIR, path.basename(name));
+      if (existsSync(resolvedPath)) {
+        const { rm } = await import("fs/promises");
+        await rm(resolvedPath);
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "PDF not found" });
+      }
+    } catch (e: any) {
+      console.error("Failed to delete PDF:", e);
+      res.status(500).json({ error: "Failed to delete PDF: " + e.message });
+    }
+  });
+
+  app.get("/api/audio", async (req, res) => {
+    try {
+      const files = await import("fs/promises").then(fs => fs.readdir(AUDIO_DIR));
+      const allowedExts = [".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac"];
+      const audioFiles = files.filter(f => allowedExts.some(ext => f.toLowerCase().endsWith(ext)));
+      res.json(audioFiles.map(file => ({ name: file, url: `/audio/${file}` })));
+    } catch (e) {
+      console.error("Failed to list audio files:", e);
+      res.status(500).json({ error: "Failed to list audio files" });
+    }
+  });
+
+  app.post("/api/upload-audio", authMiddleware, upload.single("audio"), async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ error: "No audio file provided" });
+    }
+    try {
+      const originalName = req.file.originalname;
+      const safeName = originalName.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+      const allowedExts = [".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac"];
+      if (!allowedExts.some(ext => safeName.toLowerCase().endsWith(ext))) {
+        return res.status(400).json({ error: "File must be an audio file (MP3, WAV, OGG, AAC, M4A, FLAC)" });
+      }
+      const targetPath = path.join(AUDIO_DIR, safeName);
+      
+      const { rename } = await import("fs/promises");
+      await rename(req.file.path, targetPath);
+      
+      res.json({ success: true, name: safeName, url: `/audio/${safeName}` });
+    } catch (e: any) {
+      console.error("Failed to upload audio:", e);
+      res.status(500).json({ error: "Failed to upload audio: " + e.message });
+    }
+  });
+
+  app.delete("/api/audio/:name", authMiddleware, async (req, res) => {
+    try {
+      const name = decodeURIComponent(req.params.name);
+      const resolvedPath = path.join(AUDIO_DIR, path.basename(name));
+      if (existsSync(resolvedPath)) {
+        const { rm } = await import("fs/promises");
+        await rm(resolvedPath);
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "Audio file not found" });
+      }
+    } catch (e: any) {
+      console.error("Failed to delete audio file:", e);
+      res.status(500).json({ error: "Failed to delete audio file: " + e.message });
+    }
+  });
+
+  app.get("/api/videos", async (req, res) => {
+    try {
+      const files = await import("fs/promises").then(fs => fs.readdir(VIDEOS_DIR));
+      const allowedExts = [".mp4", ".webm", ".ogg", ".mov", ".mkv", ".avi", ".3gp"];
+      const videoFiles = files.filter(f => allowedExts.some(ext => f.toLowerCase().endsWith(ext)));
+      res.json(videoFiles.map(file => ({ name: file, url: `/videos/${file}` })));
+    } catch (e) {
+      console.error("Failed to list video files:", e);
+      res.status(500).json({ error: "Failed to list video files" });
+    }
+  });
+
+  app.post("/api/upload-video", authMiddleware, upload.single("video"), async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ error: "No video file provided" });
+    }
+    try {
+      const originalName = req.file.originalname;
+      const safeName = originalName.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+      const allowedExts = [".mp4", ".webm", ".ogg", ".mov", ".mkv", ".avi", ".3gp"];
+      if (!allowedExts.some(ext => safeName.toLowerCase().endsWith(ext))) {
+        return res.status(400).json({ error: "File must be a supported video file (MP4, WebM, OGG, MOV, MKV, AVI, 3GP)" });
+      }
+      const targetPath = path.join(VIDEOS_DIR, safeName);
+      
+      const { rename } = await import("fs/promises");
+      await rename(req.file.path, targetPath);
+      
+      res.json({ success: true, name: safeName, url: `/videos/${safeName}` });
+    } catch (e: any) {
+      console.error("Failed to upload video:", e);
+      res.status(500).json({ error: "Failed to upload video: " + e.message });
+    }
+  });
+
+  app.delete("/api/videos/:name", authMiddleware, async (req, res) => {
+    try {
+      const name = decodeURIComponent(req.params.name);
+      const resolvedPath = path.join(VIDEOS_DIR, path.basename(name));
+      if (existsSync(resolvedPath)) {
+        const { rm } = await import("fs/promises");
+        await rm(resolvedPath);
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "Video file not found" });
+      }
+    } catch (e: any) {
+      console.error("Failed to delete video file:", e);
+      res.status(500).json({ error: "Failed to delete video file: " + e.message });
     }
   });
 
@@ -573,9 +772,61 @@ async function startServer() {
             return `<figure class="my-6 text-center"><img src="images/${cleanFilename}" alt="${alt || cleanFilename}" class="rounded-2xl max-h-96 mx-auto object-cover border border-slate-200 shadow-sm" /></figure>`;
           });
 
-          // Images ![[filename.png|params]]
+           // Images ![[filename.png|params]]
           html = html.replace(/!\[\[([^|\]\n]+)(?:\|([^\]\n]+))?\]\]/g, (match, filename, caption) => {
             const cleanFilename = filename.trim().replace(/ /g, "_");
+            const lowerFilename = cleanFilename.toLowerCase();
+            if (lowerFilename.endsWith(".pdf")) {
+              let height = "600px";
+              if (caption) {
+                const num = parseInt(caption);
+                if (!isNaN(num)) height = `${num}px`;
+              }
+              return `<div class="my-6 border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-50">
+                <div class="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500 font-sans font-semibold">
+                  <span class="flex items-center gap-1.5 truncate">
+                    <span class="px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[10px] font-bold">PDF</span> ${cleanFilename}
+                  </span>
+                  <a href="/pdfs/${encodeURIComponent(cleanFilename)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">Open in New Tab</a>
+                </div>
+                <iframe src="/pdfs/${encodeURIComponent(cleanFilename)}" title="${cleanFilename}" style="width: 100%; height: ${height};" class="bg-white border-0" />
+              </div>`;
+            }
+            const allowedAudioExts = [".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac"];
+            if (allowedAudioExts.some(ext => lowerFilename.endsWith(ext))) {
+              return `<div class="my-6 border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-50 font-sans">
+                <div class="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500 font-semibold">
+                  <span class="flex items-center gap-1.5 truncate">
+                    <span class="px-1.5 py-0.5 bg-teal-100 text-teal-800 rounded text-[10px] font-bold">AUDIO</span> ${cleanFilename}
+                  </span>
+                  <a href="/audio/${encodeURIComponent(cleanFilename)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">Download / Open</a>
+                </div>
+                <div class="p-4 bg-white flex flex-col items-center justify-center">
+                  <audio src="/audio/${encodeURIComponent(cleanFilename)}" controls class="w-full max-w-xl"></audio>
+                  ${caption ? `<div class="text-xs text-slate-400 mt-2 font-medium">${caption}</div>` : ""}
+                </div>
+              </div>`;
+            }
+            const allowedVideoExts = [".mp4", ".webm", ".ogg", ".mov", ".mkv", ".avi", ".3gp"];
+            if (allowedVideoExts.some(ext => lowerFilename.endsWith(ext))) {
+              let width = "100%";
+              if (caption) {
+                const num = parseInt(caption);
+                if (!isNaN(num)) width = `${num}px`;
+              }
+              return `<div class="my-6 border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-50 font-sans">
+                <div class="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500 font-semibold">
+                  <span class="flex items-center gap-1.5 truncate">
+                    <span className="shrink-0" class="px-1.5 py-0.5 bg-rose-100 text-rose-800 rounded text-[10px] font-bold">VIDEO</span> ${cleanFilename}
+                  </span>
+                  <a href="/videos/${encodeURIComponent(cleanFilename)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">Download / Open</a>
+                </div>
+                <div class="p-4 bg-white flex flex-col items-center justify-center">
+                  <video src="/videos/${encodeURIComponent(cleanFilename)}" controls style="width: ${width}; max-height: 480px;" class="rounded-xl border border-slate-200 shadow-sm"></video>
+                  ${caption && isNaN(parseInt(caption)) ? `<div class="text-xs text-slate-400 mt-2 font-medium">${caption}</div>` : ""}
+                </div>
+              </div>`;
+            }
             referencedImages.add(cleanFilename);
             return `<figure class="my-6 text-center"><img src="images/${cleanFilename}" alt="${caption || cleanFilename}" class="rounded-2xl max-h-96 mx-auto object-cover border border-slate-200 shadow-sm" />${caption ? `<figcaption class="text-center text-xs text-slate-400 mt-2 font-medium">${caption}</figcaption>` : ""}</figure>`;
           });
@@ -604,6 +855,20 @@ async function startServer() {
             if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(cleanTarget)) {
               referencedImages.add(cleanTarget);
               return `<img src="images/${cleanTarget}" alt="${cleanLabel}" class="rounded-xl max-h-96 mx-auto object-cover border border-slate-200" />`;
+            }
+
+            if (cleanTarget.toLowerCase().endsWith(".pdf")) {
+              return `<a href="/pdfs/${encodeURIComponent(cleanTarget)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium transition-colors">${cleanLabel}</a>`;
+            }
+
+            const allowedAudioExts = [".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac"];
+            if (allowedAudioExts.some(ext => cleanTarget.toLowerCase().endsWith(ext))) {
+              return `<a href="/audio/${encodeURIComponent(cleanTarget)}" target="_blank" rel="noopener noreferrer" class="text-teal-600 hover:text-teal-850 underline font-medium transition-colors">🎵 ${cleanLabel}</a>`;
+            }
+
+            const allowedVideoExts = [".mp4", ".webm", ".ogg", ".mov", ".mkv", ".avi", ".3gp"];
+            if (allowedVideoExts.some(ext => cleanTarget.toLowerCase().endsWith(ext))) {
+              return `<a href="/videos/${encodeURIComponent(cleanTarget)}" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:text-rose-800 underline font-medium transition-colors">🎥 ${cleanLabel}</a>`;
             }
 
             const targetLower = cleanTarget.toLowerCase();

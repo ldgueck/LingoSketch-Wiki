@@ -23,6 +23,24 @@ export const WikiRenderer: React.FC<WikiRendererProps> = ({ content }) => {
     const trimmed = filename.trim();
     const cleaned = cleanFilename(trimmed);
     const paramStr = params ? `|${params.trim()}` : "";
+    
+    // Check if it's a PDF file to embed as an iframe via custom image renderer
+    if (trimmed.toLowerCase().endsWith(".pdf")) {
+      return `![${trimmed}${paramStr}](/pdfs/${encodeURIComponent(cleaned)})`;
+    }
+    
+    // Check if it's an audio file
+    const allowedAudioExts = [".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac"];
+    if (allowedAudioExts.some(ext => trimmed.toLowerCase().endsWith(ext))) {
+      return `![${trimmed}${paramStr}](/audio/${encodeURIComponent(cleaned)})`;
+    }
+
+    // Check if it's a video file
+    const allowedVideoExts = [".mp4", ".webm", ".ogg", ".mov", ".mkv", ".avi", ".3gp"];
+    if (allowedVideoExts.some(ext => trimmed.toLowerCase().endsWith(ext))) {
+      return `![${trimmed}${paramStr}](/videos/${encodeURIComponent(cleaned)})`;
+    }
+    
     // We encode parameters into the alt text, separated by |
     return `![${trimmed}${paramStr}](/images/${encodeURIComponent(cleaned)})`;
   });
@@ -37,6 +55,26 @@ export const WikiRenderer: React.FC<WikiRendererProps> = ({ content }) => {
     if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(pageTrimmed)) {
       const cleaned = cleanFilename(pageTrimmed);
       return `[${label}](/images/${encodeURIComponent(cleaned)})`;
+    }
+    
+    // Check if it's a PDF file
+    if (/\.(pdf)$/i.test(pageTrimmed)) {
+      const cleaned = cleanFilename(pageTrimmed);
+      return `[${label}](/pdfs/${encodeURIComponent(cleaned)})`;
+    }
+
+    // Check if it's an audio file
+    const allowedAudioExts = [".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac"];
+    if (allowedAudioExts.some(ext => pageTrimmed.toLowerCase().endsWith(ext))) {
+      const cleaned = cleanFilename(pageTrimmed);
+      return `[🎵 ${label}](/audio/${encodeURIComponent(cleaned)})`;
+    }
+
+    // Check if it's a video file
+    const allowedVideoExts = [".mp4", ".webm", ".ogg", ".mov", ".mkv", ".avi", ".3gp"];
+    if (allowedVideoExts.some(ext => pageTrimmed.toLowerCase().endsWith(ext))) {
+      const cleaned = cleanFilename(pageTrimmed);
+      return `[🎥 ${label}](/videos/${encodeURIComponent(cleaned)})`;
     }
     
     const url = `/view/${pageTrimmed.replace(/ /g, "_")}`;
@@ -77,6 +115,67 @@ export const WikiRenderer: React.FC<WikiRendererProps> = ({ content }) => {
                 width = parseInt(p);
               }
             });
+
+            // Customize behavior for PDF documents
+            const isPdf = props.src?.toLowerCase().endsWith(".pdf") || props.src?.includes("/pdfs/") || params.some(p => p.toLowerCase().trim() === "pdf");
+            
+            if (isPdf) {
+              return (
+                <span className="block my-6 border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-50">
+                  <span className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500 font-sans font-semibold">
+                    <span className="flex items-center gap-1.5 truncate">
+                      <span className="px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[10px] font-bold">PDF</span> {parts[0]}
+                    </span>
+                    <a href={props.src} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline shrink-0 font-medium">Open in New Tab</a>
+                  </span>
+                  <iframe
+                    src={props.src}
+                    title={parts[0]}
+                    style={{ width: "100%", height: height ? `${height}px` : "600px" }}
+                    className="bg-white border-0"
+                  />
+                </span>
+              );
+            }
+
+            // Customize behavior for Audio documents
+            const allowedAudioExtensions = [".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac"];
+            const isAudio = props.src?.toLowerCase().match(/\.(mp3|wav|ogg|aac|m4a|flac)$/) || props.src?.includes("/audio/") || params.some(p => p.toLowerCase().trim() === "audio");
+
+            if (isAudio) {
+              return (
+                <span className="block my-6 border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-50 font-sans">
+                  <span className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500 font-semibold">
+                    <span className="flex items-center gap-1.5 truncate">
+                      <span className="px-1.5 py-0.5 bg-teal-100 text-teal-600 rounded text-[10px] font-bold">AUDIO</span> {parts[0]}
+                    </span>
+                    <a href={props.src} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline shrink-0 font-medium font-sans">Download / Open</a>
+                  </span>
+                  <span className="p-4 bg-white flex flex-col items-center justify-center">
+                    <audio src={props.src} controls className="w-full max-w-xl" />
+                  </span>
+                </span>
+              );
+            }
+
+            // Customize behavior for Video documents
+            const isVideo = props.src?.toLowerCase().match(/\.(mp4|webm|ogg|mov|mkv|avi|3gp)$/) || props.src?.includes("/videos/") || params.some(p => p.toLowerCase().trim() === "video");
+
+            if (isVideo) {
+              return (
+                <span className="block my-6 border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-50 font-sans">
+                  <span className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500 font-semibold">
+                    <span className="flex items-center gap-1.5 truncate">
+                      <span className="px-1.5 py-0.5 bg-rose-100 text-rose-600 rounded text-[10px] font-bold">VIDEO</span> {parts[0]}
+                    </span>
+                    <a href={props.src} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline shrink-0 font-medium font-sans">Download / Open</a>
+                  </span>
+                  <span className="p-4 bg-white flex flex-col items-center justify-center">
+                    <video src={props.src} controls className="w-full rounded-lg border border-slate-200 bg-black/5" style={{ maxHeight: "480px" }} />
+                  </span>
+                </span>
+              );
+            }
 
             const style: React.CSSProperties = {
               width: width ? `${width}px` : "auto",

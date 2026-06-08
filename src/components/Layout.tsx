@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, Book, Plus, Home, List, Trash2, Upload, Image, HelpCircle, LogOut, FileQuestion, Unlink } from "lucide-react";
+import { Search, Book, Plus, Home, List, Trash2, Upload, Image, HelpCircle, LogOut, FileQuestion, Unlink, FileText, Volume2, Video } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "./AuthProvider";
 
@@ -65,7 +65,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, pageTitle, onSearch })
             <NavLink to="/index" icon={<List size={18} />} label="All Pages" />
             <NavLink to="/wanted" icon={<FileQuestion size={18} />} label="Wanted" />
             <NavLink to="/orphaned" icon={<Unlink size={18} />} label="Orphaned" />
-            <NavLink to="/images" icon={<Image size={18} />} label="Gallery" />
+            <NavLink to="/images" icon={<Image size={18} />} label="Image Gallery" />
+            <NavLink to="/pdfs" icon={<FileText size={18} />} label="PDF Gallery" />
+            <NavLink to="/audio" icon={<Volume2 size={18} />} label="Audio Gallery" />
+            <NavLink to="/videos" icon={<Video size={18} />} label="Video Gallery" />
             <NavLink to="/new" icon={<Plus size={18} />} label="New Page" />
             <NavLink to="/import" icon={<Upload size={18} />} label="Data" />
             <NavLink to="/view/Help" icon={<HelpCircle size={18} />} label="Help" />

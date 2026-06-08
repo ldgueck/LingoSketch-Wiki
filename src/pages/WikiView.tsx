@@ -27,6 +27,58 @@ function renderMarkdownToBasicHTML(markdown: string, pageName: string): string {
 
   // Images ![[Filename]] or ![[Filename|caption]]
   html = html.replace(/!\[\[([^|\]\n]+)(?:\|([^\]\n]+))?\]\]/g, (match, filename, caption) => {
+    const cleanName = filename.trim();
+    if (cleanName.toLowerCase().endsWith(".pdf")) {
+      let height = "600px";
+      if (caption) {
+        const num = parseInt(caption);
+        if (!isNaN(num)) height = `${num}px`;
+      }
+      return `<div class="my-6 border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-50">
+        <div class="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500 font-sans font-semibold">
+          <span class="flex items-center gap-1.5 truncate">
+            <span class="px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[10px] font-bold">PDF</span> ${cleanName}
+          </span>
+          <a href="/pdfs/${encodeURIComponent(cleanName)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">Open in New Tab</a>
+        </div>
+        <iframe src="/pdfs/${encodeURIComponent(cleanName)}" title="${cleanName}" style="width: 100%; height: ${height};" class="bg-white border-0" />
+      </div>`;
+    }
+    const allowedAudioExts = [".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac"];
+    if (allowedAudioExts.some(ext => cleanName.toLowerCase().endsWith(ext))) {
+      return `<div class="my-6 border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-50 font-sans">
+        <div class="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500 font-semibold">
+          <span class="flex items-center gap-1.5 truncate">
+            <span class="px-1.5 py-0.5 bg-teal-100 text-teal-800 rounded text-[10px] font-bold">AUDIO</span> ${cleanName}
+          </span>
+          <a href="/audio/${encodeURIComponent(cleanName)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">Download / Open</a>
+        </div>
+        <div class="p-4 bg-white flex flex-col items-center justify-center">
+          <audio src="/audio/${encodeURIComponent(cleanName)}" controls class="w-full max-w-xl"></audio>
+          ${caption ? `<div class="text-xs text-slate-400 mt-2 font-medium">${caption}</div>` : ""}
+        </div>
+      </div>`;
+    }
+    const allowedVideoExts = [".mp4", ".webm", ".ogg", ".mov", ".mkv", ".avi", ".3gp"];
+    if (allowedVideoExts.some(ext => cleanName.toLowerCase().endsWith(ext))) {
+      let width = "100%";
+      if (caption) {
+        const num = parseInt(caption);
+        if (!isNaN(num)) width = `${num}px`;
+      }
+      return `<div class="my-6 border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-50 font-sans">
+        <div class="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500 font-semibold">
+          <span class="flex items-center gap-1.5 truncate">
+            <span class="px-1.5 py-0.5 bg-rose-100 text-rose-800 rounded text-[10px] font-bold">VIDEO</span> ${cleanName}
+          </span>
+          <a href="/videos/${encodeURIComponent(cleanName)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">Download / Open</a>
+        </div>
+        <div class="p-4 bg-white flex flex-col items-center justify-center">
+          <video src="/videos/${encodeURIComponent(cleanName)}" controls style="width: ${width}; max-height: 480px;" class="rounded-xl border border-slate-200 shadow-sm"></video>
+          ${caption && isNaN(parseInt(caption)) ? `<div class="text-xs text-slate-400 mt-2 font-medium">${caption}</div>` : ""}
+        </div>
+      </div>`;
+    }
     return `<figure class="my-6"><img src="/images/${filename}" alt="${caption || filename}" class="rounded-2xl max-h-96 mx-auto object-cover border border-slate-150" />${caption ? `<figcaption class="text-center text-xs text-slate-400 mt-2 font-medium">${caption}</figcaption>` : ''}</figure>`;
   });
 
@@ -34,6 +86,21 @@ function renderMarkdownToBasicHTML(markdown: string, pageName: string): string {
   html = html.replace(/\[\[(?:([^|\]\n]+)\|)?([^\]\n]+)\]\]/g, (match, label, target) => {
     const cleanTarget = (target || "").trim().replace(/ /g, "_");
     const cleanLabel = (label || target || "").trim().replace(/_/g, " ");
+    
+    if (cleanTarget.toLowerCase().endsWith(".pdf")) {
+      return `<a href="/pdfs/${encodeURIComponent(cleanTarget)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium">${cleanLabel}</a>`;
+    }
+    const allowedAudioExts = [".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac"];
+    if (allowedAudioExts.some(ext => cleanTarget.toLowerCase().endsWith(ext))) {
+      return `<a href="/audio/${encodeURIComponent(cleanTarget)}" target="_blank" rel="noopener noreferrer" class="text-teal-600 hover:text-teal-850 underline font-medium">🎵 ${cleanLabel}</a>`;
+    }
+    const allowedVideoExts = [".mp4", ".webm", ".ogg", ".mov", ".mkv", ".avi", ".3gp"];
+    if (allowedVideoExts.some(ext => cleanTarget.toLowerCase().endsWith(ext))) {
+      return `<a href="/videos/${encodeURIComponent(cleanTarget)}" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:text-rose-800 underline font-medium">🎥 ${cleanLabel}</a>`;
+    }
+    if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(cleanTarget)) {
+      return `<a href="/images/${encodeURIComponent(cleanTarget)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium">${cleanLabel}</a>`;
+    }
     return `<a href="/view/${cleanTarget}" class="text-blue-600 hover:text-blue-800 underline font-medium">${cleanLabel}</a>`;
   });
 

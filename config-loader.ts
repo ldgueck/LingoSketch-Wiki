@@ -8,6 +8,9 @@ export interface WikiConfig {
   versionsDir: string;
   dataFile: string;
   tempDir: string;
+  pdfsDir: string;
+  audioDir: string;
+  videosDir: string;
 }
 
 export function loadConfig(configPath: string): WikiConfig {
@@ -25,6 +28,9 @@ export function loadConfig(configPath: string): WikiConfig {
       versionsDir: path.resolve(configDir, config.versionsDir || 'versions'),
       dataFile: path.resolve(configDir, config.dataFile || 'wiki_storage.json'),
       tempDir: path.resolve(configDir, config.tempDir || 'temp'),
+      pdfsDir: path.resolve(configDir, config.pdfsDir || 'pdfs'),
+      audioDir: path.resolve(configDir, config.audioDir || 'audio'),
+      videosDir: path.resolve(configDir, config.videosDir || 'videos'),
     };
   }
 
@@ -37,5 +43,8 @@ export function loadConfig(configPath: string): WikiConfig {
     versionsDir: path.resolve(cwd, 'versions'),
     dataFile: path.resolve(cwd, 'wiki_storage.json'),
     tempDir: path.resolve(cwd, 'temp'),
+    pdfsDir: path.resolve(cwd, 'pdfs'),
+    audioDir: path.resolve(cwd, 'audio'),
+    videosDir: path.resolve(cwd, 'videos'),
   };
 }

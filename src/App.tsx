@@ -11,6 +11,9 @@ import NewPage from "./pages/NewPage";
 import SearchResults from "./pages/SearchResults";
 import ImportPage from "./pages/ImportPage";
 import ImageGallery from "./pages/ImageGallery";
+import PdfGallery from "./pages/PdfGallery";
+import AudioGallery from "./pages/AudioGallery";
+import VideoGallery from "./pages/VideoGallery";
 import LoginPage from "./pages/LoginPage";
 import WantedPages from "./pages/WantedPages";
 import OrphanedPages from "./pages/OrphanedPages";
@@ -48,6 +51,9 @@ function AppContent() {
       <Route path="/search" element={<SearchResults />} />
       <Route path="/import" element={<ImportPage />} />
       <Route path="/images" element={<ImageGallery />} />
+      <Route path="/pdfs" element={<PdfGallery />} />
+      <Route path="/audio" element={<AudioGallery />} />
+      <Route path="/videos" element={<VideoGallery />} />
       <Route path="*" element={<Navigate to="/view/HomePage" replace />} />
     </Routes>
   );
