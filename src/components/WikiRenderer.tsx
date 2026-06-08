@@ -11,6 +11,19 @@ export const WikiRenderer: React.FC<WikiRendererProps> = ({ content }) => {
   // Helper to match server-side filename cleaning from server.ts
   const cleanFilename = (name: string) => name.replace(/[<>:"/\\|?*]/g, '_');
 
+  const isYoutubeUrl = (url: string) => {
+    return /^(https?:\/\/)?(www\.|m\.)?(youtube\.com|youtu\.be)\//.test(url);
+  };
+
+  const getYoutubeEmbedUrl = (url: string) => {
+    const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    if (match && match[2].length === 11) {
+      return `https://www.youtube.com/embed/${match[2]}`;
+    }
+    return url;
+  };
+
   // Regex to find [[WikiLink]] or [[Display|WikiLink]]
   const wikiLinkRegex = /\[\[(?:([^|\]]+)\|)?([^\]]+)\]\]/g;
   // Regex to find ![[Image.png]] or ![[Image.png|params]]
@@ -24,6 +37,11 @@ export const WikiRenderer: React.FC<WikiRendererProps> = ({ content }) => {
     const cleaned = cleanFilename(trimmed);
     const paramStr = params ? `|${params.trim()}` : "";
     
+    // Check if it's a YouTube URL
+    if (isYoutubeUrl(trimmed)) {
+       return `![${trimmed}${paramStr}](${trimmed})`;
+    }
+
     // Check if it's a PDF file to embed as an iframe via custom image renderer
     if (trimmed.toLowerCase().endsWith(".pdf")) {
       return `![${trimmed}${paramStr}](/pdfs/${encodeURIComponent(cleaned)})`;
@@ -50,6 +68,11 @@ export const WikiRenderer: React.FC<WikiRendererProps> = ({ content }) => {
   processedContent = processedContent.replace(wikiLinkRegex, (match, display, page) => {
     const label = display || page;
     const pageTrimmed = page.trim();
+
+    // Check if it's a YouTube URL
+    if (isYoutubeUrl(pageTrimmed)) {
+       return `[${label}](${pageTrimmed})`;
+    }
     
     // Check if it's an image file
     if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(pageTrimmed)) {
@@ -160,6 +183,29 @@ export const WikiRenderer: React.FC<WikiRendererProps> = ({ content }) => {
 
             // Customize behavior for Video documents
             const isVideo = props.src?.toLowerCase().match(/\.(mp4|webm|ogg|mov|mkv|avi|3gp)$/) || props.src?.includes("/videos/") || params.some(p => p.toLowerCase().trim() === "video");
+            const isYoutube = props.src && isYoutubeUrl(props.src);
+
+            if (isYoutube) {
+              return (
+                <span className="block my-6 border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-50 font-sans">
+                  <span className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500 font-semibold">
+                    <span className="flex items-center gap-1.5 truncate">
+                      <span className="px-1.5 py-0.5 bg-rose-100 text-rose-600 rounded text-[10px] font-bold">YOUTUBE</span> {parts[0]}
+                    </span>
+                    <a href={props.src} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline shrink-0 font-medium font-sans">Open in YouTube</a>
+                  </span>
+                  <span className="p-4 bg-white flex flex-col items-center justify-center">
+                    <iframe
+                      src={getYoutubeEmbedUrl(props.src!)}
+                      title={parts[0]}
+                      className="w-full rounded-lg border border-slate-200 bg-black/5 aspect-video"
+                      style={{ maxHeight: "480px" }}
+                      allowFullScreen
+                    />
+                  </span>
+                </span>
+              );
+            }
 
             if (isVideo) {
               return (
