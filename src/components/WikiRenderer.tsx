@@ -189,8 +189,9 @@ export const WikiRenderer: React.FC<WikiRendererProps> = ({ content }) => {
                     </span>
                     <a href={props.src} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline shrink-0 font-medium">Open in New Tab</a>
                   </span>
-                  <iframe
+                  <embed
                     src={props.src}
+                    type="application/pdf"
                     title={parts[0]}
                     style={{ width: "100%", height: height ? `${height}px` : "600px" }}
                     className="bg-white border-0"

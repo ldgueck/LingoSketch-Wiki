@@ -1,5 +1,7 @@
 import express from "express";
 import path from "path";
+import Database from 'better-sqlite3';
+import db from './src/lib/db';
 import { existsSync, mkdirSync, createReadStream, createWriteStream, readdirSync, statSync } from "fs";
 import { readFile, writeFile, rm, mkdir, cp } from "fs/promises";
 import cookieParser from "cookie-parser";
@@ -21,7 +23,7 @@ const PDFS_DIR = config.pdfsDir;
 const AUDIO_DIR = config.audioDir;
 const VIDEOS_DIR = config.videosDir;
 
-const upload = multer({ dest: TEMP_DIR });
+const upload = multer({ dest: TEMP_DIR, limits: { fileSize: 500 * 1024 * 1024 } });
 
 // Authentication Config
 const APP_PASSWORD = process.env.APP_PASSWORD || "password";
@@ -168,26 +170,36 @@ async function startServer() {
   
   if (!existsSync(DATA_FILE)) {
     try {
-      await writeFile(DATA_FILE, "{}", "utf-8");
-      console.log("[SERVER] Initialized empty wiki_storage.json");
+      const data = {};
+      const stmt = db.prepare('INSERT INTO pages (name, content) VALUES (?, ?)');
+      for (const [key, value] of Object.entries(data)) {
+        stmt.run(key, value);
+      }
+      console.log("[SERVER] Initialized empty SQLite database");
     } catch (err) {
-      console.error("[SERVER] Failed to initialize DATA_FILE:", err);
+      console.error("[SERVER] Failed to initialize database:", err);
     }
   } else {
-    // Perform database space-to-underscore migration
+    // Migrate from JSON to SQLite if exists
     try {
       const fileData = await readFile(DATA_FILE, "utf-8");
       const parsed = JSON.parse(fileData);
       const migrated = migrateSpacesToUnderscores(parsed);
       
-      if (JSON.stringify(parsed) !== JSON.stringify(migrated)) {
-        await writeFile(DATA_FILE, JSON.stringify(migrated, null, 2), "utf-8");
-        console.log("[MIGRATION] Migration completed: All spaces in links [[]] and page titles have been replaced with underscores.");
-      } else {
-        console.log("[MIGRATION] Database is already migrated & consistent.");
-      }
+      const insert = db.prepare('INSERT OR REPLACE INTO pages (name, content) VALUES (?, ?)');
+      const transaction = db.transaction((data) => {
+        for (const [key, value] of Object.entries(data)) {
+          insert.run(key, value);
+        }
+      });
+      transaction(migrated);
+      
+      // Rename file to backup
+      await cp(DATA_FILE, DATA_FILE + ".bak");
+      await rm(DATA_FILE);
+      console.log("[MIGRATION] Migration from JSON to SQLite completed.");
     } catch (err) {
-      console.error("[MIGRATION] Failed to run startup space-to-underscore migration:", err);
+      console.error("[MIGRATION] Failed to migrate JSON database:", err);
     }
   }
 
@@ -195,8 +207,9 @@ async function startServer() {
   app.set('trust proxy', 1);
   
   app.use(cookieParser());
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.text({ limit: "50mb" }));
+  app.use(express.json({ limit: "500mb" }));
+  app.use(express.text({ limit: "500mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "500mb" }));
   app.use('/images', express.static(IMAGES_DIR));
   app.use('/pdfs', express.static(PDFS_DIR));
   app.use('/audio', express.static(AUDIO_DIR));
@@ -243,8 +256,8 @@ async function startServer() {
   // Pages CRUD
   app.get("/api/pages", async (req, res) => {
     try {
-      const data = JSON.parse(await readFile(DATA_FILE, "utf-8"));
-      res.json(Object.keys(data));
+      const rows = db.prepare('SELECT name FROM pages').all() as {name: string}[];
+      res.json(rows.map(r => r.name));
     } catch (e) {
       res.status(500).json({ error: "Failed to read data" });
     }
@@ -452,10 +465,10 @@ async function startServer() {
 
   app.get("/api/pages/:name", async (req, res) => {
     try {
-      const data = JSON.parse(await readFile(DATA_FILE, "utf-8"));
       const name = req.params.name.replace(/ /g, "_");
-      if (!data[name]) return res.status(404).json({ error: "Page not found" });
-      res.json({ name, content: data[name] });
+      const row = db.prepare('SELECT content FROM pages WHERE name = ?').get(name) as {content: string} | undefined;
+      if (!row) return res.status(404).json({ error: "Page not found" });
+      res.json({ name, content: row.content });
     } catch (e) {
       res.status(500).json({ error: "Failed to read data" });
     }
@@ -463,7 +476,6 @@ async function startServer() {
 
   app.post("/api/pages/:name", authMiddleware, async (req, res) => {
     try {
-      const data = JSON.parse(await readFile(DATA_FILE, "utf-8"));
       const name = req.params.name.replace(/ /g, "_");
       let { content } = req.body;
       
@@ -472,8 +484,7 @@ async function startServer() {
       }
       
       // 1. Save in the main database
-      data[name] = content;
-      await writeFile(DATA_FILE, JSON.stringify(data, null, 2));
+      db.prepare('INSERT OR REPLACE INTO pages (name, content) VALUES (?, ?)').run(name, content);
 
       // 2. Also save into the history/versions directory
       try {
@@ -494,7 +505,6 @@ async function startServer() {
 
   app.post("/api/pages/:name/rename", authMiddleware, async (req, res) => {
     try {
-      const data = JSON.parse(await readFile(DATA_FILE, "utf-8"));
       const name = req.params.name.replace(/ /g, "_");
       const { newName } = req.body;
       
@@ -502,29 +512,34 @@ async function startServer() {
         return res.status(400).json({ error: "newName is required" });
       }
       
-      if (!data[name]) {
+      const content = db.prepare('SELECT content FROM pages WHERE name = ?').get(name) as {content: string} | undefined;
+      if (!content) {
         return res.status(404).json({ error: "Page not found" });
       }
 
       const cleanNewName = newName.replace(/ /g, "_");
 
       // Replace the key in the database
-      const content = data[name];
-      delete data[name];
-      data[cleanNewName] = content;
+      const transaction = db.transaction(() => {
+        db.prepare('DELETE FROM pages WHERE name = ?').run(name);
+        db.prepare('INSERT INTO pages (name, content) VALUES (?, ?)').run(cleanNewName, content.content);
 
-      // Update all references in all pages
-      for (const [key, text] of Object.entries(data)) {
-        const updatedText = (text as string).replace(/\[\[(?:([^|\]]+)\|)?([^\]]+)\]\]/g, (match, display, pageMatch) => {
-          if (pageMatch.trim() === name) {
-            return display ? `[[${display}|${cleanNewName}]]` : `[[${cleanNewName}]]`;
-          }
-          return match;
-        });
-        data[key] = updatedText;
-      }
+        // Update all references in all pages
+        const allPages = db.prepare('SELECT name, content FROM pages').all() as {name: string, content: string}[];
+        const stmtUpdate = db.prepare('UPDATE pages SET content = ? WHERE name = ?');
+        
+        for (const page of allPages) {
+            const updatedText = (page.content as string).replace(/\[\[(?:([^|\]]+)\|)?([^\]]+)\]\]/g, (match, display, pageMatch) => {
+                if (pageMatch.trim() === name) {
+                return display ? `[[${display}|${cleanNewName}]]` : `[[${cleanNewName}]]`;
+                }
+                return match;
+            });
+            stmtUpdate.run(updatedText, page.name);
+        }
+      });
+      transaction();
 
-      await writeFile(DATA_FILE, JSON.stringify(data, null, 2));
       res.json({ success: true, newName: cleanNewName });
     } catch (e: any) {
       console.error("Rename error:", e);
@@ -594,10 +609,8 @@ async function startServer() {
 
   app.delete("/api/pages/:name", authMiddleware, async (req, res) => {
     try {
-      const data = JSON.parse(await readFile(DATA_FILE, "utf-8"));
       const name = req.params.name.replace(/ /g, "_");
-      delete data[name];
-      await writeFile(DATA_FILE, JSON.stringify(data, null, 2));
+      db.prepare('DELETE FROM pages WHERE name = ?').run(name);
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: "Failed to delete data" });
@@ -606,7 +619,6 @@ async function startServer() {
 
   app.post("/api/import-lisp", authMiddleware, async (req, res) => {
     try {
-      const data = JSON.parse(await readFile(DATA_FILE, "utf-8"));
       const { lispData } = req.body;
       if (!lispData) return res.status(400).json({ error: "No Lisp data provided" });
 
@@ -615,21 +627,44 @@ async function startServer() {
       const cleaned = lispData.trim().replace(/^\(|\)$/g, '');
       const pages = cleaned.match(/"[^"]*"\s*"[^"]*"/g) || [];
       
-      let count = 0;
-      for (const page of pages) {
-        const match = page.match(/"([^"]*)"\s*"([^"]*)"/);
-        if (match) {
-          data[match[1]] = match[2];
-          count++;
-        }
-      }
+      const transaction = db.transaction((parsedPages) => {
+          const insert = db.prepare('INSERT OR REPLACE INTO pages (name, content) VALUES (?, ?)');
+          for (const page of parsedPages) {
+            const match = page.match(/"([^"]*)"\s*"([^"]*)"/);
+            if (match) {
+              const name = match[1].replace(/ /g, "_");
+              const content = match[2];
+              insert.run(name, content);
+            }
+          }
+      });
+      transaction(pages);
       
-      const migrated = migrateSpacesToUnderscores(data);
-      await writeFile(DATA_FILE, JSON.stringify(migrated, null, 2));
-      res.json({ message: `Successfully imported ${count} pages` });
+      res.json({ message: `Successfully processed Lisp import` });
     } catch (e) {
       console.error("Lisp import error:", e);
       res.status(500).json({ error: "Failed to process Lisp data" });
+    }
+  });
+
+  app.post("/api/import-json-file", authMiddleware, upload.single("jsonFile"), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    try {
+      const data = JSON.parse(await readFile(req.file.path, "utf-8"));
+      
+      const transaction = db.transaction((data) => {
+        const insert = db.prepare('INSERT OR REPLACE INTO pages (name, content) VALUES (?, ?)');
+        for (const [key, value] of Object.entries(data)) {
+          insert.run(key, value);
+        }
+      });
+      transaction(data);
+      
+      await rm(req.file.path);
+      res.json({ message: "Successfully imported JSON data" });
+    } catch (e) {
+      console.error("JSON file import error:", e);
+      res.status(500).json({ error: "Failed to process JSON data - ensure it is valid JSON" });
     }
   });
 
@@ -644,12 +679,9 @@ async function startServer() {
 
       // Read database content
       let data: Record<string, string> = {};
-      if (existsSync(DATA_FILE)) {
-        try {
-          data = JSON.parse(await readFile(DATA_FILE, "utf-8"));
-        } catch (e) {
-          console.error("[EXPORT] Failed to read database for export:", e);
-        }
+      const rows = db.prepare('SELECT name, content FROM pages').all() as {name: string, content: string}[];
+      for (const row of rows) {
+        data[row.name] = row.content;
       }
 
       const getSafePageFilename = (pageName: string): string => {
@@ -1411,7 +1443,15 @@ async function startServer() {
 
       // 1. Restore the wiki database file ONLY after confirming it is valid and migrating spaces to underscores
       const migratedData = migrateSpacesToUnderscores(parsedData);
-      await writeFile(DATA_FILE, JSON.stringify(migratedData, null, 2), "utf-8");
+      
+      const transaction = db.transaction((data) => {
+        db.prepare('DELETE FROM pages').run();
+        const insert = db.prepare('INSERT INTO pages (name, content) VALUES (?, ?)');
+        for (const [key, value] of Object.entries(data)) {
+          insert.run(key, value);
+        }
+      });
+      transaction(migratedData);
       console.log("[RESTORE BE] Restored & migrated wiki database successfully. Pages count:", Object.keys(migratedData).length);
 
       // 2. Restore images if present
@@ -1515,27 +1555,26 @@ async function startServer() {
 
   app.get("/api/backlinks/:name", async (req, res) => {
     try {
-      const data = JSON.parse(await readFile(DATA_FILE, "utf-8"));
       const name = req.params.name.replace(/ /g, "_");
-      const backlinks = Object.keys(data).filter(pageName => {
-        if (pageName.toLowerCase() === name.toLowerCase()) return false;
+      const allPages = db.prepare('SELECT name, content FROM pages').all() as {name: string, content: string}[];
+      
+      const backlinks = allPages
+        .filter(p => p.name.toLowerCase() !== name.toLowerCase())
+        .filter(p => {
+          const content = p.content;
+          if (typeof content !== "string") return false;
+
+          const stripped = content.replace(/!\[\[/g, 'IMAGE_BRACKET');
+          const linkRegex = /\[\[(?:([^|\]\n]+)\|)?([^\]\n]+)\]\]/g;
+          let match;
+          while ((match = linkRegex.exec(stripped)) !== null) {
+            const target = (match[2] || "").trim().replace(/ /g, "_").toLowerCase();
+            if (target === name.toLowerCase()) return true;
+          }
+          return false;
+        })
+        .map(p => p.name);
         
-        const content = data[pageName];
-        if (typeof content !== "string") return false;
-
-        // Skip image embedding references
-        const stripped = content.replace(/!\[\[/g, 'IMAGE_BRACKET');
-
-        // Regex to find [[Target]] or [[Display|Target]]
-        // Note: Using [\s\S] to match across newlines inside [[...]]
-        const linkRegex = /\[\[(?:([^|\]\n]+)\|)?([^\]\n]+)\]\]/g;
-        let match;
-        while ((match = linkRegex.exec(stripped)) !== null) {
-          const target = (match[2] || "").trim().replace(/ /g, "_").toLowerCase();
-          if (target === name.toLowerCase()) return true;
-        }
-        return false;
-      });
       res.json(backlinks);
     } catch (e) {
       res.status(500).json({ error: "Failed to read data" });
@@ -1544,13 +1583,13 @@ async function startServer() {
 
   app.get("/api/wanted", async (req, res) => {
     try {
-      const data = JSON.parse(await readFile(DATA_FILE, "utf-8"));
-      const existingPagesLower = new Set(Object.keys(data).map(name => name.toLowerCase()));
+      const allPages = db.prepare('SELECT name, content FROM pages').all() as {name: string, content: string}[];
+      const existingPagesLower = new Set(allPages.map(p => p.name.toLowerCase()));
       const wantedMap = new Map<string, Set<string>>();
       
       const regex = /\[\[(?:([^|\]]+)\|)?([^\]]+)\]\]/g;
       
-      for (const [srcPage, content] of Object.entries(data)) {
+      for (const {name: srcPage, content} of allPages) {
         if (typeof content !== "string") continue;
         
         // Strip out image references to avoid matching ![[...]]
@@ -1590,14 +1629,14 @@ async function startServer() {
 
   app.get("/api/orphaned", async (req, res) => {
     try {
-      const data = JSON.parse(await readFile(DATA_FILE, "utf-8"));
-      const existingPages = Object.keys(data);
-      const existingPagesLower = new Set(existingPages.map(name => name.toLowerCase()));
+      const allPages = db.prepare('SELECT name, content FROM pages').all() as {name: string, content: string}[];
+      const existingPages = allPages.map(p => p.name);
+      
       const targetedPagesLower = new Set<string>();
       
       const regex = /\[\[(?:([^|\]]+)\|)?([^\]]+)\]\]/g;
       
-      for (const [srcPage, content] of Object.entries(data)) {
+      for (const {name: srcPage, content} of allPages) {
         if (typeof content !== "string") continue;
         
         const stripped = content.replace(/!\[\[/g, 'IMAGE_BRACKET');
