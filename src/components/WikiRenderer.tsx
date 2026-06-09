@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link } from "react-router-dom";
@@ -8,6 +8,22 @@ interface WikiRendererProps {
 }
 
 export const WikiRenderer: React.FC<WikiRendererProps> = ({ content }) => {
+  const [existingPages, setExistingPages] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/pages", { credentials: "include" })
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error("Failed to load existing wiki pages list");
+      })
+      .then(data => {
+        setExistingPages(data || []);
+      })
+      .catch(err => {
+        console.error("WikiRenderer failed to fetch Page IDs:", err);
+      });
+  }, [content]);
+
   // Helper to match server-side filename cleaning from server.ts
   const cleanFilename = (name: string) => name.replace(/[<>:"/\\|?*]/g, '_');
 
@@ -112,7 +128,29 @@ export const WikiRenderer: React.FC<WikiRendererProps> = ({ content }) => {
           a: ({ node, ...props }) => {
             const isInternal = props.href?.startsWith("/view/");
             if (isInternal) {
-              return <Link to={props.href!} {...props} className="text-blue-600 font-bold hover:underline" />;
+              const rawTarget = props.href!.substring(6);
+              const decodedTarget = decodeURIComponent(rawTarget).trim();
+              const normalizedTarget = decodedTarget.replace(/ /g, "_").toLowerCase();
+              const exists = existingPages.some(page => page.replace(/ /g, "_").toLowerCase() === normalizedTarget);
+              
+              if (exists) {
+                return (
+                  <Link 
+                    to={props.href!} 
+                    {...props} 
+                    className="!text-blue-600 hover:!text-blue-800 font-bold hover:underline" 
+                  />
+                );
+              } else {
+                return (
+                  <Link 
+                    to={props.href!} 
+                    {...props} 
+                    className="!text-red-600 hover:!text-red-800 font-bold hover:underline" 
+                    title="This page does not exist yet. Click to create it!"
+                  />
+                );
+              }
             }
             return <a {...props} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer" />;
           },

@@ -1322,7 +1322,20 @@ async function startServer() {
     try {
       const data = JSON.parse(await readFile(DATA_FILE, "utf-8"));
       const name = req.params.name.replace(/ /g, "_");
-      const backlinks = Object.keys(data).filter(pageName => pageName !== name && data[pageName].includes(`[[${name}]]`));
+      const backlinks = Object.keys(data).filter(pageName => {
+        if (pageName === name) return false;
+        
+        const content = data[pageName];
+        // Regex to find [[Target]] or [[Display|Target]]
+        // Note: Using [\s\S] to match across newlines inside [[...]]
+        const linkRegex = /\[\[(?:([^|\]\n]+)\|)?([^\]\n]+)\]\]/g;
+        let match;
+        while ((match = linkRegex.exec(content)) !== null) {
+          const target = (match[2] || "").trim().replace(/ /g, "_");
+          if (target === name) return true;
+        }
+        return false;
+      });
       res.json(backlinks);
     } catch (e) {
       res.status(500).json({ error: "Failed to read data" });
