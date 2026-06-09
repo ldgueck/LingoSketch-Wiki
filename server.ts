@@ -731,10 +731,13 @@ async function startServer() {
           }
         }
 
+        const allImagesInBranch = new Set<string>();
+        const allPdfsInBranch = new Set<string>();
+        const allAudioInBranch = new Set<string>();
+        const allVideosInBranch = new Set<string>();
+
         // 2. MD to HTML converter function
         const mdToHtml = (markdown: string, pageName: string, reached: Set<string>, db: Record<string, string>) => {
-          const referencedImages = new Set<string>();
-
           let html = markdown
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
@@ -768,7 +771,7 @@ async function startServer() {
           // Standard markdown images: ![alt](/images/filename.gif)
           html = html.replace(/!\[(.*?)\]\(\/?images\/([^\s\)]+)\)/gi, (match, alt, filename) => {
             const cleanFilename = path.basename(filename.trim().replace(/ /g, "_"));
-            referencedImages.add(cleanFilename);
+            allImagesInBranch.add(cleanFilename);
             return `<figure class="my-6 text-center"><img src="images/${cleanFilename}" alt="${alt || cleanFilename}" class="rounded-2xl max-h-96 mx-auto object-cover border border-slate-200 shadow-sm" /></figure>`;
           });
 
@@ -782,27 +785,29 @@ async function startServer() {
                 const num = parseInt(caption);
                 if (!isNaN(num)) height = `${num}px`;
               }
+              allPdfsInBranch.add(cleanFilename);
               return `<div class="my-6 border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-50">
                 <div class="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500 font-sans font-semibold">
                   <span class="flex items-center gap-1.5 truncate">
                     <span class="px-1.5 py-0.5 bg-red-100 text-red-600 rounded text-[10px] font-bold">PDF</span> ${cleanFilename}
                   </span>
-                  <a href="/pdfs/${encodeURIComponent(cleanFilename)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">Open in New Tab</a>
+                  <a href="pdfs/${encodeURIComponent(cleanFilename)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">Open in New Tab</a>
                 </div>
-                <iframe src="/pdfs/${encodeURIComponent(cleanFilename)}" title="${cleanFilename}" style="width: 100%; height: ${height};" class="bg-white border-0" />
+                <iframe src="pdfs/${encodeURIComponent(cleanFilename)}" title="${cleanFilename}" style="width: 100%; height: ${height};" class="bg-white border-0" />
               </div>`;
             }
             const allowedAudioExts = [".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac"];
             if (allowedAudioExts.some(ext => lowerFilename.endsWith(ext))) {
+              allAudioInBranch.add(cleanFilename);
               return `<div class="my-6 border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-50 font-sans">
                 <div class="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500 font-semibold">
                   <span class="flex items-center gap-1.5 truncate">
                     <span class="px-1.5 py-0.5 bg-teal-100 text-teal-800 rounded text-[10px] font-bold">AUDIO</span> ${cleanFilename}
                   </span>
-                  <a href="/audio/${encodeURIComponent(cleanFilename)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">Download / Open</a>
+                  <a href="audio/${encodeURIComponent(cleanFilename)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">Download / Open</a>
                 </div>
                 <div class="p-4 bg-white flex flex-col items-center justify-center">
-                  <audio src="/audio/${encodeURIComponent(cleanFilename)}" controls class="w-full max-w-xl"></audio>
+                  <audio src="audio/${encodeURIComponent(cleanFilename)}" controls class="w-full max-w-xl"></audio>
                   ${caption ? `<div class="text-xs text-slate-400 mt-2 font-medium">${caption}</div>` : ""}
                 </div>
               </div>`;
@@ -814,20 +819,21 @@ async function startServer() {
                 const num = parseInt(caption);
                 if (!isNaN(num)) width = `${num}px`;
               }
+              allVideosInBranch.add(cleanFilename);
               return `<div class="my-6 border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-50 font-sans">
                 <div class="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500 font-semibold">
                   <span class="flex items-center gap-1.5 truncate">
                     <span className="shrink-0" class="px-1.5 py-0.5 bg-rose-100 text-rose-800 rounded text-[10px] font-bold">VIDEO</span> ${cleanFilename}
                   </span>
-                  <a href="/videos/${encodeURIComponent(cleanFilename)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">Download / Open</a>
+                  <a href="videos/${encodeURIComponent(cleanFilename)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">Download / Open</a>
                 </div>
                 <div class="p-4 bg-white flex flex-col items-center justify-center">
-                  <video src="/videos/${encodeURIComponent(cleanFilename)}" controls style="width: ${width}; max-height: 480px;" class="rounded-xl border border-slate-200 shadow-sm"></video>
+                  <video src="videos/${encodeURIComponent(cleanFilename)}" controls style="width: ${width}; max-height: 480px;" class="rounded-xl border border-slate-200 shadow-sm"></video>
                   ${caption && isNaN(parseInt(caption)) ? `<div class="text-xs text-slate-400 mt-2 font-medium">${caption}</div>` : ""}
                 </div>
               </div>`;
             }
-            referencedImages.add(cleanFilename);
+            allImagesInBranch.add(cleanFilename);
             return `<figure class="my-6 text-center"><img src="images/${cleanFilename}" alt="${caption || cleanFilename}" class="rounded-2xl max-h-96 mx-auto object-cover border border-slate-200 shadow-sm" />${caption ? `<figcaption class="text-center text-xs text-slate-400 mt-2 font-medium">${caption}</figcaption>` : ""}</figure>`;
           });
 
@@ -853,22 +859,25 @@ async function startServer() {
             const cleanLabel = (label || targetStr).trim().replace(/_/g, " ");
 
             if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(cleanTarget)) {
-              referencedImages.add(cleanTarget);
+              allImagesInBranch.add(cleanTarget);
               return `<img src="images/${cleanTarget}" alt="${cleanLabel}" class="rounded-xl max-h-96 mx-auto object-cover border border-slate-200" />`;
             }
 
             if (cleanTarget.toLowerCase().endsWith(".pdf")) {
-              return `<a href="/pdfs/${encodeURIComponent(cleanTarget)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium transition-colors">${cleanLabel}</a>`;
+              allPdfsInBranch.add(cleanTarget);
+              return `<a href="pdfs/${encodeURIComponent(cleanTarget)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium transition-colors">${cleanLabel}</a>`;
             }
 
             const allowedAudioExts = [".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac"];
             if (allowedAudioExts.some(ext => cleanTarget.toLowerCase().endsWith(ext))) {
-              return `<a href="/audio/${encodeURIComponent(cleanTarget)}" target="_blank" rel="noopener noreferrer" class="text-teal-600 hover:text-teal-850 underline font-medium transition-colors">🎵 ${cleanLabel}</a>`;
+              allAudioInBranch.add(cleanTarget);
+              return `<a href="audio/${encodeURIComponent(cleanTarget)}" target="_blank" rel="noopener noreferrer" class="text-teal-600 hover:text-teal-850 underline font-medium transition-colors">🎵 ${cleanLabel}</a>`;
             }
 
             const allowedVideoExts = [".mp4", ".webm", ".ogg", ".mov", ".mkv", ".avi", ".3gp"];
             if (allowedVideoExts.some(ext => cleanTarget.toLowerCase().endsWith(ext))) {
-              return `<a href="/videos/${encodeURIComponent(cleanTarget)}" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:text-rose-800 underline font-medium transition-colors">🎥 ${cleanLabel}</a>`;
+              allVideosInBranch.add(cleanTarget);
+              return `<a href="videos/${encodeURIComponent(cleanTarget)}" target="_blank" rel="noopener noreferrer" class="text-rose-600 hover:text-rose-800 underline font-medium transition-colors">🎥 ${cleanLabel}</a>`;
             }
 
             const targetLower = cleanTarget.toLowerCase();
@@ -953,7 +962,7 @@ async function startServer() {
             return `<code class="bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded text-sm font-mono text-pink-600">${code}</code>`;
           });
 
-          return { html: parsedContent, referencedImages };
+          return { html: parsedContent };
         };
 
         // 3. Wrapper template constructor
@@ -1029,14 +1038,10 @@ async function startServer() {
 </html>`;
         };
 
-        const allImagesInBranch = new Set<string>();
-
         // Generate pages
         for (const pageNameKey of reachableList) {
           const content = data[pageNameKey] || "";
-          const { html, referencedImages } = mdToHtml(content, pageNameKey, reachableKeys, data);
-
-          referencedImages.forEach(img => allImagesInBranch.add(img));
+          const { html } = mdToHtml(content, pageNameKey, reachableKeys, data);
 
           const pageHtmlContent = wrapHtmlTemplate(pageNameKey, html, reachableList, pageNameKey);
           
@@ -1068,6 +1073,33 @@ async function startServer() {
           }
         }
 
+        // Include referenced PDFs
+        for (const pdfName of allPdfsInBranch) {
+          const safeFilename = path.basename(pdfName);
+          const pdfPath = path.join(PDFS_DIR, safeFilename);
+          if (existsSync(pdfPath)) {
+            zip.addLocalFile(pdfPath, "pdfs");
+          }
+        }
+
+        // Include referenced Audio
+        for (const audName of allAudioInBranch) {
+          const safeFilename = path.basename(audName);
+          const audPath = path.join(AUDIO_DIR, safeFilename);
+          if (existsSync(audPath)) {
+            zip.addLocalFile(audPath, "audio");
+          }
+        }
+
+        // Include referenced Videos
+        for (const vidName of allVideosInBranch) {
+          const safeFilename = path.basename(vidName);
+          const vidPath = path.join(VIDEOS_DIR, safeFilename);
+          if (existsSync(vidPath)) {
+            zip.addLocalFile(vidPath, "videos");
+          }
+        }
+
         const safeStartPageName = getSafePageFilename(startPage);
         const filename = `wiki_html_branch_${safeStartPageName}_${dateStamp}_${timeStamp}.zip`;
         const buffer = zip.toBuffer();
@@ -1078,7 +1110,7 @@ async function startServer() {
           "Content-Length": buffer.length,
         });
         res.send(buffer);
-        console.log(`[EXPORT BE] Web ZIP generated with ${reachableList.length} pages and ${allImagesInBranch.size} images. Size:`, buffer.length);
+        console.log(`[EXPORT BE] Web ZIP generated with ${reachableList.length} pages, ${allImagesInBranch.size} images, ${allPdfsInBranch.size} PDFs, ${allAudioInBranch.size} audio, and ${allVideosInBranch.size} videos. Size:`, buffer.length);
 
       } else {
         // --- ZIP BACKUP EXPORT (Wiki Branch Backup ZIP) ---
@@ -1103,38 +1135,56 @@ async function startServer() {
         // Add the JSON database
         zip.addFile("wiki_storage.json", Buffer.from(JSON.stringify(exportData, null, 2), "utf-8"));
 
-        // Add referenced images only
+        // Add referenced files only
         const allImagesInBranch = new Set<string>();
+        const allPdfsInBranch = new Set<string>();
+        const allAudioInBranch = new Set<string>();
+        const allVideosInBranch = new Set<string>();
+
+        const collectResourceReferences = (content: string) => {
+          if (typeof content !== "string") return;
+
+          // Standard markdown patterns pointing to images, pdfs, audio, videos
+          const mdPathRegex = /\/(images|pdfs|audio|videos)\/([^\s\)\"\'>]+)/gi;
+          let rMatch;
+          mdPathRegex.lastIndex = 0;
+          while ((rMatch = mdPathRegex.exec(content)) !== null) {
+            const folder = rMatch[1].toLowerCase();
+            const fileName = path.basename(rMatch[2].trim().replace(/ /g, "_"));
+            if (folder === "images") allImagesInBranch.add(fileName);
+            else if (folder === "pdfs") allPdfsInBranch.add(fileName);
+            else if (folder === "audio") allAudioInBranch.add(fileName);
+            else if (folder === "videos") allVideosInBranch.add(fileName);
+          }
+
+          // Wiki links/embeds: ![[filename]] or [[filename]]
+          const wikiRegex = /\[\[(?:([^|\]\n]+)\|)?([^\]\n]+)\]\]/g;
+          wikiRegex.lastIndex = 0;
+          while ((rMatch = wikiRegex.exec(content)) !== null) {
+            const part1 = (rMatch[1] || "").trim().replace(/ /g, "_");
+            const part2 = (rMatch[2] || "").trim().replace(/ /g, "_");
+            
+            const classify = (str: string) => {
+              if (!str) return;
+              const lower = str.toLowerCase();
+              if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(lower)) {
+                allImagesInBranch.add(str);
+              } else if (lower.endsWith(".pdf")) {
+                allPdfsInBranch.add(str);
+              } else if ([".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac"].some(ext => lower.endsWith(ext))) {
+                allAudioInBranch.add(str);
+              } else if ([".mp4", ".webm", ".ogg", ".mov", ".mkv", ".avi", ".3gp"].some(ext => lower.endsWith(ext))) {
+                allVideosInBranch.add(str);
+              }
+            };
+            classify(part1);
+            classify(part2);
+          }
+        };
+
         for (const pageNameKey of Object.keys(exportData)) {
           const content = exportData[pageNameKey] || "";
-          
-          // Match standard Markdown images: ![alt](/images/filename.gif) /images/filename.png
-          const mdImageRegex = /!\[.*?\]\(\/?images\/([^\s\)]+)\)/gi;
-          let match;
-          mdImageRegex.lastIndex = 0;
-          while ((match = mdImageRegex.exec(content)) !== null) {
-            const cleanFilename = path.basename(match[1].trim().replace(/ /g, "_"));
-            allImagesInBranch.add(cleanFilename);
-          }
-
-          // Images ![[filename.png|params]]
-          const wikiImageRegex = /!\[\[([^|\]\n]+)(?:\|[^\]\n]+)?\]\]/g;
-          wikiImageRegex.lastIndex = 0;
-          while ((match = wikiImageRegex.exec(content)) !== null) {
-            const cleanFilename = match[1].trim().replace(/ /g, "_");
-            allImagesInBranch.add(cleanFilename);
-          }
-
-          // Links [[Target]] where target is an image file
-          const wikiLinkRegex = /\[\[(?:([^|\]\n]+)\|)?([^\]\n]+)\]\]/g;
-          wikiLinkRegex.lastIndex = 0;
-          while ((match = wikiLinkRegex.exec(content)) !== null) {
-            const targetStr = match[2].trim();
-            const cleanTarget = targetStr.replace(/ /g, "_");
-            if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(cleanTarget)) {
-              allImagesInBranch.add(cleanTarget);
-            }
-          }
+          collectResourceReferences(content);
         }
 
         if (existsSync(IMAGES_DIR)) {
@@ -1151,6 +1201,57 @@ async function startServer() {
             const files = await import("fs/promises").then(fs => fs.readdir(IMAGES_DIR));
             if (files.length > 0) {
               zip.addLocalFolder(IMAGES_DIR, "images");
+            }
+          }
+        }
+
+        if (existsSync(PDFS_DIR)) {
+          if (allPdfsInBranch.size > 0) {
+            for (const pdfName of allPdfsInBranch) {
+              const safeFilename = path.basename(pdfName);
+              const pdfPath = path.join(PDFS_DIR, safeFilename);
+              if (existsSync(pdfPath)) {
+                zip.addLocalFile(pdfPath, "pdfs");
+              }
+            }
+          } else if (reachableList.length === 0) {
+            const files = await import("fs/promises").then(fs => fs.readdir(PDFS_DIR));
+            if (files.length > 0) {
+              zip.addLocalFolder(PDFS_DIR, "pdfs");
+            }
+          }
+        }
+
+        if (existsSync(AUDIO_DIR)) {
+          if (allAudioInBranch.size > 0) {
+            for (const audName of allAudioInBranch) {
+              const safeFilename = path.basename(audName);
+              const audPath = path.join(AUDIO_DIR, safeFilename);
+              if (existsSync(audPath)) {
+                zip.addLocalFile(audPath, "audio");
+              }
+            }
+          } else if (reachableList.length === 0) {
+            const files = await import("fs/promises").then(fs => fs.readdir(AUDIO_DIR));
+            if (files.length > 0) {
+              zip.addLocalFolder(AUDIO_DIR, "audio");
+            }
+          }
+        }
+
+        if (existsSync(VIDEOS_DIR)) {
+          if (allVideosInBranch.size > 0) {
+            for (const vidName of allVideosInBranch) {
+              const safeFilename = path.basename(vidName);
+              const vidPath = path.join(VIDEOS_DIR, safeFilename);
+              if (existsSync(vidPath)) {
+                zip.addLocalFile(vidPath, "videos");
+              }
+            }
+          } else if (reachableList.length === 0) {
+            const files = await import("fs/promises").then(fs => fs.readdir(VIDEOS_DIR));
+            if (files.length > 0) {
+              zip.addLocalFolder(VIDEOS_DIR, "videos");
             }
           }
         }
@@ -1216,6 +1317,9 @@ async function startServer() {
       let wikiStorageEntry: any = null;
       let isRktd = false;
       const imageEntries: any[] = [];
+      const pdfEntries: any[] = [];
+      const audioEntries: any[] = [];
+      const videoEntries: any[] = [];
       const versionEntries: any[] = [];
 
       for (const entry of entries) {
@@ -1238,6 +1342,12 @@ async function startServer() {
           isRktd = true;
         } else if (normalized.includes("/images/") || normalized.startsWith("images/")) {
           imageEntries.push(entry);
+        } else if (normalized.includes("/pdfs/") || normalized.startsWith("pdfs/")) {
+          pdfEntries.push(entry);
+        } else if (normalized.includes("/audio/") || normalized.startsWith("audio/")) {
+          audioEntries.push(entry);
+        } else if (normalized.includes("/videos/") || normalized.startsWith("videos/")) {
+          videoEntries.push(entry);
         } else if (normalized.includes("/versions/") || normalized.startsWith("versions/") || normalized.includes("/history/") || normalized.startsWith("history/")) {
           versionEntries.push(entry);
         }
@@ -1285,6 +1395,57 @@ async function startServer() {
         console.log(`[RESTORE BE] Restored ${imageEntries.length} images successfully.`);
       } else {
         console.log("[RESTORE BE] No images found in ZIP to restore.");
+      }
+
+      // 2b. Restore PDFs if present
+      if (pdfEntries.length > 0) {
+        await rm(PDFS_DIR, { recursive: true, force: true });
+        await mkdir(PDFS_DIR, { recursive: true });
+        
+        for (const entry of pdfEntries) {
+          const filename = path.basename(entry.entryName);
+          if (!filename || filename.startsWith(".")) continue;
+          
+          const destPath = path.join(PDFS_DIR, filename);
+          await writeFile(destPath, entry.getData());
+        }
+        console.log(`[RESTORE BE] Restored ${pdfEntries.length} PDFs successfully.`);
+      } else {
+        console.log("[RESTORE BE] No PDFs found in ZIP to restore.");
+      }
+
+      // 2c. Restore Audio if present
+      if (audioEntries.length > 0) {
+        await rm(AUDIO_DIR, { recursive: true, force: true });
+        await mkdir(AUDIO_DIR, { recursive: true });
+        
+        for (const entry of audioEntries) {
+          const filename = path.basename(entry.entryName);
+          if (!filename || filename.startsWith(".")) continue;
+          
+          const destPath = path.join(AUDIO_DIR, filename);
+          await writeFile(destPath, entry.getData());
+        }
+        console.log(`[RESTORE BE] Restored ${audioEntries.length} audio files successfully.`);
+      } else {
+        console.log("[RESTORE BE] No audio files found in ZIP to restore.");
+      }
+
+      // 2d. Restore Videos if present
+      if (videoEntries.length > 0) {
+        await rm(VIDEOS_DIR, { recursive: true, force: true });
+        await mkdir(VIDEOS_DIR, { recursive: true });
+        
+        for (const entry of videoEntries) {
+          const filename = path.basename(entry.entryName);
+          if (!filename || filename.startsWith(".")) continue;
+          
+          const destPath = path.join(VIDEOS_DIR, filename);
+          await writeFile(destPath, entry.getData());
+        }
+        console.log(`[RESTORE BE] Restored ${videoEntries.length} video files successfully.`);
+      } else {
+        console.log("[RESTORE BE] No video files found in ZIP to restore.");
       }
 
       // 3. Restore versions/history if present
