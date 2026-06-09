@@ -1114,81 +1114,88 @@ async function startServer() {
 
       } else {
         // --- ZIP BACKUP EXPORT (Wiki Branch Backup ZIP) ---
-        const reachableKeys = getReachablePages(data, startPage);
-        const reachableList = Array.from(reachableKeys).sort();
-
+        const hasStartPage = !!req.query.startPage;
+        
         let exportData: Record<string, string> = {};
+        let isScoped = false;
+        let reachableList: string[] = [];
 
-        // If we found reachable pages, filter to keep only those. Otherwise, fallback to full DB
-        if (reachableList.length > 0) {
-          console.log(`[EXPORT ZIP] Scoped backup to branch of ${reachableList.length} pages.`);
-          for (const key of reachableList) {
-            if (data[key] !== undefined) {
-              exportData[key] = data[key];
+        if (hasStartPage) {
+          const reachableKeys = getReachablePages(data, startPage);
+          reachableList = Array.from(reachableKeys).sort();
+          if (reachableList.length > 0) {
+            isScoped = true;
+            console.log(`[EXPORT ZIP] Scoped backup to branch of ${reachableList.length} pages starting from "${startPage}".`);
+            for (const key of reachableList) {
+              if (data[key] !== undefined) {
+                exportData[key] = data[key];
+              }
             }
           }
-        } else {
-          console.log(`[EXPORT ZIP] No reachable pages found for startPage: ${startPage}. Exporting full database.`);
+        }
+
+        if (!isScoped) {
+          console.log(`[EXPORT ZIP] Full backup mode active. Exporting full database.`);
           exportData = data;
         }
 
         // Add the JSON database
         zip.addFile("wiki_storage.json", Buffer.from(JSON.stringify(exportData, null, 2), "utf-8"));
 
-        // Add referenced files only
-        const allImagesInBranch = new Set<string>();
-        const allPdfsInBranch = new Set<string>();
-        const allAudioInBranch = new Set<string>();
-        const allVideosInBranch = new Set<string>();
+        if (isScoped) {
+          // --- SCOPED BACKUP (referenced files only) ---
+          const allImagesInBranch = new Set<string>();
+          const allPdfsInBranch = new Set<string>();
+          const allAudioInBranch = new Set<string>();
+          const allVideosInBranch = new Set<string>();
 
-        const collectResourceReferences = (content: string) => {
-          if (typeof content !== "string") return;
+          const collectResourceReferences = (content: string) => {
+            if (typeof content !== "string") return;
 
-          // Standard markdown patterns pointing to images, pdfs, audio, videos
-          const mdPathRegex = /\/(images|pdfs|audio|videos)\/([^\s\)\"\'>]+)/gi;
-          let rMatch;
-          mdPathRegex.lastIndex = 0;
-          while ((rMatch = mdPathRegex.exec(content)) !== null) {
-            const folder = rMatch[1].toLowerCase();
-            const fileName = path.basename(rMatch[2].trim().replace(/ /g, "_"));
-            if (folder === "images") allImagesInBranch.add(fileName);
-            else if (folder === "pdfs") allPdfsInBranch.add(fileName);
-            else if (folder === "audio") allAudioInBranch.add(fileName);
-            else if (folder === "videos") allVideosInBranch.add(fileName);
+            // Standard markdown patterns pointing to images, pdfs, audio, videos
+            const mdPathRegex = /\/(images|pdfs|audio|videos)\/([^\s\)\"\'>]+)/gi;
+            let rMatch;
+            mdPathRegex.lastIndex = 0;
+            while ((rMatch = mdPathRegex.exec(content)) !== null) {
+              const folder = rMatch[1].toLowerCase();
+              const fileName = path.basename(rMatch[2].trim().replace(/ /g, "_"));
+              if (folder === "images") allImagesInBranch.add(fileName);
+              else if (folder === "pdfs") allPdfsInBranch.add(fileName);
+              else if (folder === "audio") allAudioInBranch.add(fileName);
+              else if (folder === "videos") allVideosInBranch.add(fileName);
+            }
+
+            // Wiki links/embeds: ![[filename]] or [[filename]]
+            const wikiRegex = /\[\[(?:([^|\]\n]+)\|)?([^\]\n]+)\]\]/g;
+            wikiRegex.lastIndex = 0;
+            while ((rMatch = wikiRegex.exec(content)) !== null) {
+              const part1 = (rMatch[1] || "").trim().replace(/ /g, "_");
+              const part2 = (rMatch[2] || "").trim().replace(/ /g, "_");
+              
+              const classify = (str: string) => {
+                if (!str) return;
+                const lower = str.toLowerCase();
+                if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(lower)) {
+                  allImagesInBranch.add(str);
+                } else if (lower.endsWith(".pdf")) {
+                  allPdfsInBranch.add(str);
+                } else if ([".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac"].some(ext => lower.endsWith(ext))) {
+                  allAudioInBranch.add(str);
+                } else if ([".mp4", ".webm", ".ogg", ".mov", ".mkv", ".avi", ".3gp"].some(ext => lower.endsWith(ext))) {
+                  allVideosInBranch.add(str);
+                }
+              };
+              classify(part1);
+              classify(part2);
+            }
+          };
+
+          for (const pageNameKey of Object.keys(exportData)) {
+            const content = exportData[pageNameKey] || "";
+            collectResourceReferences(content);
           }
 
-          // Wiki links/embeds: ![[filename]] or [[filename]]
-          const wikiRegex = /\[\[(?:([^|\]\n]+)\|)?([^\]\n]+)\]\]/g;
-          wikiRegex.lastIndex = 0;
-          while ((rMatch = wikiRegex.exec(content)) !== null) {
-            const part1 = (rMatch[1] || "").trim().replace(/ /g, "_");
-            const part2 = (rMatch[2] || "").trim().replace(/ /g, "_");
-            
-            const classify = (str: string) => {
-              if (!str) return;
-              const lower = str.toLowerCase();
-              if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(lower)) {
-                allImagesInBranch.add(str);
-              } else if (lower.endsWith(".pdf")) {
-                allPdfsInBranch.add(str);
-              } else if ([".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac"].some(ext => lower.endsWith(ext))) {
-                allAudioInBranch.add(str);
-              } else if ([".mp4", ".webm", ".ogg", ".mov", ".mkv", ".avi", ".3gp"].some(ext => lower.endsWith(ext))) {
-                allVideosInBranch.add(str);
-              }
-            };
-            classify(part1);
-            classify(part2);
-          }
-        };
-
-        for (const pageNameKey of Object.keys(exportData)) {
-          const content = exportData[pageNameKey] || "";
-          collectResourceReferences(content);
-        }
-
-        if (existsSync(IMAGES_DIR)) {
-          if (allImagesInBranch.size > 0) {
+          if (existsSync(IMAGES_DIR)) {
             for (const imgName of allImagesInBranch) {
               const safeFilename = path.basename(imgName);
               const imgPath = path.join(IMAGES_DIR, safeFilename);
@@ -1196,17 +1203,9 @@ async function startServer() {
                 zip.addLocalFile(imgPath, "images");
               }
             }
-          } else if (reachableList.length === 0) {
-            // Only add entire images directory if exporting full database as fallback
-            const files = await import("fs/promises").then(fs => fs.readdir(IMAGES_DIR));
-            if (files.length > 0) {
-              zip.addLocalFolder(IMAGES_DIR, "images");
-            }
           }
-        }
 
-        if (existsSync(PDFS_DIR)) {
-          if (allPdfsInBranch.size > 0) {
+          if (existsSync(PDFS_DIR)) {
             for (const pdfName of allPdfsInBranch) {
               const safeFilename = path.basename(pdfName);
               const pdfPath = path.join(PDFS_DIR, safeFilename);
@@ -1214,16 +1213,9 @@ async function startServer() {
                 zip.addLocalFile(pdfPath, "pdfs");
               }
             }
-          } else if (reachableList.length === 0) {
-            const files = await import("fs/promises").then(fs => fs.readdir(PDFS_DIR));
-            if (files.length > 0) {
-              zip.addLocalFolder(PDFS_DIR, "pdfs");
-            }
           }
-        }
 
-        if (existsSync(AUDIO_DIR)) {
-          if (allAudioInBranch.size > 0) {
+          if (existsSync(AUDIO_DIR)) {
             for (const audName of allAudioInBranch) {
               const safeFilename = path.basename(audName);
               const audPath = path.join(AUDIO_DIR, safeFilename);
@@ -1231,16 +1223,9 @@ async function startServer() {
                 zip.addLocalFile(audPath, "audio");
               }
             }
-          } else if (reachableList.length === 0) {
-            const files = await import("fs/promises").then(fs => fs.readdir(AUDIO_DIR));
-            if (files.length > 0) {
-              zip.addLocalFolder(AUDIO_DIR, "audio");
-            }
           }
-        }
 
-        if (existsSync(VIDEOS_DIR)) {
-          if (allVideosInBranch.size > 0) {
+          if (existsSync(VIDEOS_DIR)) {
             for (const vidName of allVideosInBranch) {
               const safeFilename = path.basename(vidName);
               const vidPath = path.join(VIDEOS_DIR, safeFilename);
@@ -1248,41 +1233,90 @@ async function startServer() {
                 zip.addLocalFile(vidPath, "videos");
               }
             }
-          } else if (reachableList.length === 0) {
-            const files = await import("fs/promises").then(fs => fs.readdir(VIDEOS_DIR));
-            if (files.length > 0) {
-              zip.addLocalFolder(VIDEOS_DIR, "videos");
-            }
           }
-        }
 
-        // Add filtered version files
-        if (existsSync(VERSIONS_DIR)) {
-          const files = await import("fs/promises").then(fs => fs.readdir(VERSIONS_DIR));
-          if (files.length > 0) {
-            if (reachableList.length > 0) {
-              // Copy over ONLY those version files where the page prefix matches a reachable page
-              for (const file of files) {
-                // Find matching page
-                const isMatch = reachableList.some(pageName => {
-                  const safeName = pageName.replace(/[^a-zA-Z0-9-]/g, "_");
-                  return file.startsWith(`${safeName}_`);
-                });
-                if (isMatch) {
-                  const versionPath = path.join(VERSIONS_DIR, file);
-                  zip.addLocalFile(versionPath, "versions");
+          if (existsSync(VERSIONS_DIR)) {
+            try {
+              const fsPromises = await import("fs/promises");
+              const files = await fsPromises.readdir(VERSIONS_DIR);
+              if (files.length > 0) {
+                for (const file of files) {
+                  const isMatch = reachableList.some(pageName => {
+                    const safeName = pageName.replace(/[^a-zA-Z0-9-]/g, "_");
+                    return file.startsWith(`${safeName}_`);
+                  });
+                  if (isMatch) {
+                    const versionPath = path.join(VERSIONS_DIR, file);
+                    zip.addLocalFile(versionPath, "versions");
+                  }
                 }
               }
-            } else {
-              // If full backup mode, copy entire folder
-              zip.addLocalFolder(VERSIONS_DIR, "versions");
+            } catch (err) {
+              console.error("[EXPORT ZIP SCOPED] Error reading versions folder:", err);
+            }
+          }
+        } else {
+          // --- FULL BACKUP (add complete folders) ---
+          if (existsSync(IMAGES_DIR)) {
+            try {
+              const fsPromises = await import("fs/promises");
+              const files = await fsPromises.readdir(IMAGES_DIR);
+              if (files.length > 0) {
+                zip.addLocalFolder(IMAGES_DIR, "images");
+              }
+            } catch (err) {
+              console.error("[EXPORT ZIP FULL] Error reading images folder:", err);
+            }
+          }
+          if (existsSync(PDFS_DIR)) {
+            try {
+              const fsPromises = await import("fs/promises");
+              const files = await fsPromises.readdir(PDFS_DIR);
+              if (files.length > 0) {
+                zip.addLocalFolder(PDFS_DIR, "pdfs");
+              }
+            } catch (err) {
+              console.error("[EXPORT ZIP FULL] Error reading pdfs folder:", err);
+            }
+          }
+          if (existsSync(AUDIO_DIR)) {
+            try {
+              const fsPromises = await import("fs/promises");
+              const files = await fsPromises.readdir(AUDIO_DIR);
+              if (files.length > 0) {
+                zip.addLocalFolder(AUDIO_DIR, "audio");
+              }
+            } catch (err) {
+              console.error("[EXPORT ZIP FULL] Error reading audio folder:", err);
+            }
+          }
+          if (existsSync(VIDEOS_DIR)) {
+            try {
+              const fsPromises = await import("fs/promises");
+              const files = await fsPromises.readdir(VIDEOS_DIR);
+              if (files.length > 0) {
+                zip.addLocalFolder(VIDEOS_DIR, "videos");
+              }
+            } catch (err) {
+              console.error("[EXPORT ZIP FULL] Error reading videos folder:", err);
+            }
+          }
+          if (existsSync(VERSIONS_DIR)) {
+            try {
+              const fsPromises = await import("fs/promises");
+              const files = await fsPromises.readdir(VERSIONS_DIR);
+              if (files.length > 0) {
+                zip.addLocalFolder(VERSIONS_DIR, "versions");
+              }
+            } catch (err) {
+              console.error("[EXPORT ZIP FULL] Error reading versions folder:", err);
             }
           }
         }
 
         const buffer = zip.toBuffer();
         const safeStartPageName = getSafePageFilename(startPage);
-        const filename = reachableList.length > 0 
+        const filename = isScoped 
           ? `wiki_branch_backup_${safeStartPageName}_${dateStamp}_${timeStamp}.zip`
           : `wiki_backup_${dateStamp}_${timeStamp}.zip`;
 
@@ -1292,7 +1326,7 @@ async function startServer() {
           "Content-Length": buffer.length,
         });
         res.send(buffer);
-        console.log(`[EXPORT BE] Branch Backup ZIP generated successfully. Pages: ${Object.keys(exportData).length}, Images: ${allImagesInBranch.size}. Size:`, buffer.length);
+        console.log(`[EXPORT BE] Backup ZIP generated successfully. Pages: ${Object.keys(exportData).length}, Scoped: ${isScoped}. Size:`, buffer.length);
       }
     } catch (e: any) {
       console.error("Export error:", e);
