@@ -1323,16 +1323,21 @@ async function startServer() {
       const data = JSON.parse(await readFile(DATA_FILE, "utf-8"));
       const name = req.params.name.replace(/ /g, "_");
       const backlinks = Object.keys(data).filter(pageName => {
-        if (pageName === name) return false;
+        if (pageName.toLowerCase() === name.toLowerCase()) return false;
         
         const content = data[pageName];
+        if (typeof content !== "string") return false;
+
+        // Skip image embedding references
+        const stripped = content.replace(/!\[\[/g, 'IMAGE_BRACKET');
+
         // Regex to find [[Target]] or [[Display|Target]]
         // Note: Using [\s\S] to match across newlines inside [[...]]
         const linkRegex = /\[\[(?:([^|\]\n]+)\|)?([^\]\n]+)\]\]/g;
         let match;
-        while ((match = linkRegex.exec(content)) !== null) {
-          const target = (match[2] || "").trim().replace(/ /g, "_");
-          if (target === name) return true;
+        while ((match = linkRegex.exec(stripped)) !== null) {
+          const target = (match[2] || "").trim().replace(/ /g, "_").toLowerCase();
+          if (target === name.toLowerCase()) return true;
         }
         return false;
       });
