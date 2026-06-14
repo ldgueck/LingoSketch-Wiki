@@ -1,6 +1,6 @@
 # LyngoSketch Wiki
 
-LingoSketch Wiki is a lightweight, multi-instance, multi-user wiki engine that stores data in plain JSON files. It is designed to be portable, highly performant, and easy to run on local machines or remote servers for collaborative knowledge management.
+LingoSketch Wiki is a lightweight, multi-instance, multi-user wiki engine that stores data in a SQLite database. It is designed to be portable, highly performant, and easy to run on local machines or remote servers for collaborative knowledge management.
 
 ## Getting Started
 
@@ -33,8 +33,8 @@ Launch an instance using a configuration file:
 
 ## Architecture & Internals
 
-### Data Persistence (JSON Storage)
-Instead of a database, LyngoSketch stores wiki content in JSON files. This ensures your data remains human-readable, easy to back up, and version-controllable with Git.
+### Data Persistence (SQLite Storage)
+Instead of JSON files, LyngoSketch stores wiki content in a SQLite database. This ensures high performance, atomicity, and efficient querying of your wiki pages.
 
 ### Reliability (Atomic Writes)
 The system uses atomic file writes when saving pages or database updates. This minimizes the risk of file corruption if the server reboots or loses power during a write operation.
