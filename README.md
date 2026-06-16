@@ -1,70 +1,34 @@
 # LyngoSketch Wiki
 
-LingoSketch Wiki is a lightweight, multi-instance, multi-user wiki engine that stores data in a SQLite database. It is designed to be portable, highly performant, and easy to run on local machines or remote servers for collaborative knowledge management.
+LyngoSketch Wiki is a lightweight, multi-instance wiki engine designed for collaborative knowledge management. It utilizes a SQLite database for persistent storage. Ensure that the host environment provides sufficient permissions for read and write operations on the database file at the project root.
 
-## Getting Started
+## Technical Requirements
 
-### Prerequisites
+- Node.js (v18+)
+- SQLite
 
-*   Node.js (v18+)
+## Installation
 
-### Installation
+1. Clone the repository.
+2. Install dependencies: `npm install`.
+3. Compile the project: `npm run build`.
 
-1. Clone the repository:
-   ```bash
-   git clone <your-repo-url>
-   cd LyngoSketchWiki
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Build the application:
-   ```bash
-   npm run build
-   ```
+## Operation
 
-### Launching an Instance
+To initiate the server, run `npm start`. The application defaults to port 3000. Port modifications must be reflected in the server configuration and any relevant system service definitions.
 
-Launch an instance using a configuration file:
-   ```bash
-   npm start ./configs/my-wiki.json
-   ```
+The server process must be executed within the project root directory. Failure to maintain a consistent working directory will result in the server failing to access the persistent `wiki.sqlite` file, causing data loss upon restart.
 
-## Architecture & Internals
+## Architecture and Maintenance
 
-### Data Persistence (SQLite Storage)
-Instead of JSON files, LyngoSketch stores wiki content in a SQLite database. This ensures high performance, atomicity, and efficient querying of your wiki pages.
+Data is managed via a SQLite database, ensuring atomicity and efficient querying of page content.
 
-### Reliability (Atomic Writes)
-The system uses atomic file writes when saving pages or database updates. This minimizes the risk of file corruption if the server reboots or loses power during a write operation.
+For production environments, utilize robust process management utilities to ensure service continuity. It is recommended to deploy instances behind a reverse proxy to manage traffic and implement mandatory SSL/TLS encryption for public-facing servers.
 
-### Multi-Instance/Horizontal Scaling
-You can run multiple, completely independent wiki instances on a single machine. Create a custom JSON configuration file for each wiki and assign it a unique port:
+## Support
 
-```json
-{
-  "wikiName": "My Project",
-  "port": 3001,
-  "imagesDir": "./data/project/images",
-  "dataFile": "./data/project/storage.json"
-}
-```
-
-### Export Engine
-The wiki includes a branch-aware export engine that allows you to slice off a self-contained subset of pages and assets from your knowledge base.
-
-*   **Recursive Discovery**: The engine traces all internal links (WikiLinks and Markdown links) starting from a selected page to determine what to include in the branch.
-*   **Asset Harvesting**: It selectively exports only the images referenced within the branch, keeping export files compact.
-*   **Branch-Aware Backups**: Exports can include selective version history for the pages included in the branch.
-
-*For more details, see `branch_readme.md` in this repository.*
-
-## Security & Deployment
-
-*   **Access Control**: The wiki supports multiple concurrent users. You can secure access to an instance using the `APP_PASSWORD` environment variable.
-*   **Remote Access**: If you are hosting the wiki on a public server, it is recommended to place it behind a reverse proxy (such as Nginx, Caddy, or Traefik) to handle SSL/TLS encryption.
-*   **Process Management**: For production environments, use a process manager like PM2 to keep your wiki instances running in the background.
+Refer to the provided `Coder.md` manual for comprehensive technical guidelines regarding system integration, process management, and maintenance requirements.
 
 ## License
+
 MIT
