@@ -4,6 +4,7 @@ import { Lock, ArrowRight, Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 
 export default function LoginPage() {
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -14,9 +15,9 @@ export default function LoginPage() {
     setError("");
     setIsSubmitting(true);
 
-    const success = await login(password);
+    const success = await login(username, password);
     if (!success) {
-      setError("Invalid password. Please try again.");
+      setError("Invalid credentials. Please try again.");
       setIsSubmitting(false);
     }
   };
@@ -40,11 +41,30 @@ export default function LoginPage() {
             </div>
             <h1 className="text-2xl font-bold text-white tracking-tight">Protected Wiki</h1>
             <p className="text-slate-400 text-sm mt-2 text-center">
-              Please enter the password to access the server content.
+              Please enter your credentials to access the server.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label 
+                htmlFor="username" 
+                className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-1"
+              >
+                Username
+              </label>
+              <div className="relative">
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl py-4 px-5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                  placeholder="admin"
+                  autoFocus
+                />
+              </div>
+            </div>
             <div>
               <label 
                 htmlFor="password" 
@@ -60,7 +80,6 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-slate-800/50 border border-slate-700 rounded-2xl py-4 px-5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
                   placeholder="••••••••"
-                  autoFocus
                 />
               </div>
               {error && (
@@ -77,7 +96,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={isSubmitting || !password}
+              disabled={isSubmitting || !username || !password}
               className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-[0.98]"
             >
               {isSubmitting ? (

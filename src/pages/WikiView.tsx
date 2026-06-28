@@ -190,6 +190,7 @@ export default function WikiView() {
     setLoading(true);
     fetch(`/api/pages/${pageName}`, { credentials: "include" })
       .then((res) => {
+        if (res.status === 401) { navigate("/"); return; }
         if (res.status === 404) return { name: pageName, content: "# Page Not Found\n\nThis page doesn't exist yet. Would you like to [[edit]] it?" };
         if (!res.ok) throw new Error("Failed to load page");
         return res.json();

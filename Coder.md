@@ -45,3 +45,13 @@ When running as a system service:
 
 ### 6.2 Process Monitoring
 If necessary, identify processes via `ps aux | grep <process-name>`. The process ID (PID) is the second column of the output. Termination of unresponsive processes may be required via `kill <PID>` or `kill -9 <PID>` if the process fails to terminate gracefully.
+
+## 7. Authentication System
+The wiki requires authentication for all API access.
+
+### 7.1 User Management
+Credentials are stored locally in the `passwd.json` file in the project root. Each user entry includes a password and a role (`admin` or `user`).
+
+### 7.2 Access Control
+- **Authentication**: Access is verified via the `wiki_auth` cookie, which is set upon a successful login and must match a username defined in `passwd.json`.
+- **Authorization**: All API routes are protected by `authMiddleware`, which validates if the user exists in `passwd.json`. Currently, both `admin` and `user` roles are permitted access to all wiki content. The `role` field is infrastructure for future implementation of granular role-based access control (e.g., restricting editing functions to administrators only).

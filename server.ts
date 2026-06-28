@@ -216,24 +216,44 @@ async function startServer() {
   app.use('/videos', express.static(VIDEOS_DIR));
 
   // Authentication Middleware
-  const authMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    next();
+  const authMiddleware = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const username = req.cookies[AUTH_COOKIE_NAME];
+    if (!username) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      const passData = JSON.parse(await readFile('./passwd.json', 'utf-8'));
+      if (passData.users[username]) {
+        next();
+      } else {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+    } catch (e) {
+      console.error("Auth error:", e);
+      return res.status(500).json({ error: "Auth server error" });
+    }
   };
 
   // Auth endpoint
-  app.post("/api/login", (req, res) => {
-    const password = req.body?.password;
-    if (!password) return res.status(400).json({ error: "No password provided" });
-    if (password === APP_PASSWORD) {
-      res.cookie(AUTH_COOKIE_NAME, APP_PASSWORD, { 
-        httpOnly: true, 
-        secure: true, 
-        sameSite: 'none',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 1 week
-      });
-      res.json({ success: true });
-    } else {
-      res.status(401).json({ error: "Invalid password" });
+  app.post("/api/login", async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ error: "Missing username or password" });
+    try {
+      const passData = JSON.parse(await readFile('./passwd.json', 'utf-8'));
+      const user = passData.users[username];
+      if (user && user.password === password) {
+        res.cookie(AUTH_COOKIE_NAME, username, { 
+          httpOnly: true, 
+          secure: true, 
+          sameSite: 'none',
+          maxAge: 7 * 24 * 60 * 60 * 1000 // 1 week
+        });
+        res.json({ success: true, role: user.role });
+      } else {
+        res.status(401).json({ error: "Invalid credentials" });
+      }
+    } catch (e) {
+      console.error("Login IO error:", e);
+      res.status(500).json({ error: "Server error" });
     }
   });
 
@@ -243,8 +263,22 @@ async function startServer() {
   });
 
   // Auth Status
-  app.get("/api/auth-status", (req, res) => {
-    res.json({ isAuthenticated: true });
+  app.get("/api/auth-status", async (req, res) => {
+    const username = req.cookies[AUTH_COOKIE_NAME];
+    if (!username) {
+        return res.json({ isAuthenticated: false });
+    }
+    try {
+        const passData = JSON.parse(await readFile('./passwd.json', 'utf-8'));
+        if (passData.users[username]) {
+            res.json({ isAuthenticated: true });
+        } else {
+            res.clearCookie(AUTH_COOKIE_NAME);
+            res.json({ isAuthenticated: false });
+        }
+    } catch (e) {
+        res.json({ isAuthenticated: false });
+    }
   });
 
   // Logout
@@ -254,7 +288,7 @@ async function startServer() {
   });
 
   // Pages CRUD
-  app.get("/api/pages", async (req, res) => {
+  app.get("/api/pages", authMiddleware, async (req, res) => {
     try {
       const rows = db.prepare('SELECT name FROM pages').all() as {name: string}[];
       res.json(rows.map(r => r.name));
@@ -263,7 +297,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/images", async (req, res) => {
+  app.get("/api/images", authMiddleware, async (req, res) => {
     try {
       const files = await import("fs/promises").then(fs => fs.readdir(IMAGES_DIR));
       res.json(files.map(file => ({ name: file, url: `/images/${file}` })));
@@ -309,7 +343,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/pdfs", async (req, res) => {
+  app.get("/api/pdfs", authMiddleware, async (req, res) => {
     try {
       const files = await import("fs/promises").then(fs => fs.readdir(PDFS_DIR));
       const pdfFiles = files.filter(f => f.toLowerCase().endsWith(".pdf"));
@@ -359,7 +393,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/audio", async (req, res) => {
+  app.get("/api/audio", authMiddleware, async (req, res) => {
     try {
       const files = await import("fs/promises").then(fs => fs.readdir(AUDIO_DIR));
       const allowedExts = [".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac"];
@@ -411,7 +445,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/videos", async (req, res) => {
+  app.get("/api/videos", authMiddleware, async (req, res) => {
     try {
       const files = await import("fs/promises").then(fs => fs.readdir(VIDEOS_DIR));
       const allowedExts = [".mp4", ".webm", ".ogg", ".mov", ".mkv", ".avi", ".3gp"];
@@ -463,7 +497,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/pages/:name", async (req, res) => {
+  app.get("/api/pages/:name", authMiddleware, async (req, res) => {
     try {
       const name = req.params.name.replace(/ /g, "_");
       const row = db.prepare('SELECT content FROM pages WHERE name = ?').get(name) as {content: string} | undefined;
@@ -547,7 +581,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/pages/:name/history", async (req, res) => {
+  app.get("/api/pages/:name/history", authMiddleware, async (req, res) => {
     try {
       const name = req.params.name.replace(/ /g, "_");
       const safePageName = name.replace(/[^a-zA-Z0-9-]/g, "_");
